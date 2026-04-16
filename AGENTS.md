@@ -47,3 +47,5 @@
 - `agents/execution.md`: 승인된 작업을 어떻게 실행할지, git/non-git fallback 포함
 - `agents/verification.md`: 완료 주장 전 검증, 사용자 영향 변경 검증, shipping 전 확인
 - `agents/safety.md`: isolation 우선순위, destructive command 규칙, 기존 변경 충돌 처리
+- `docs/operations/routing-dry-run.md`: 실제 요청 예시로 첫 스킬과 첫 운영 단계를 검산하는 운영 샘플
+- `docs/operations/session-runbook.md`: 이 repo에서 세션 시작, 구현 시작, 종료, 재개를 정렬하는 운영 런북
