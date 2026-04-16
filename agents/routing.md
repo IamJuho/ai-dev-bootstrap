@@ -16,8 +16,8 @@
 | 요청 유형 | 첫 스킬 | 다음 단계 | Fast Path |
 | --- | --- | --- | --- |
 | 신규 아이디어, 가치 검증, 방향 탐색 | `gstack-office-hours` | `brainstorming` | 불가 |
-| 비사소한 기능 설계, 요구 정제, 구현 전 구조 정리 | `brainstorming` | `agents/planning.md` 확인 후, 가능하면 `using-git-worktrees` 검토 뒤 `writing-plans` | 불가 |
-| 승인된 spec 또는 plan 기반 구현 | `subagent-driven-development` | 기본 실행 경로와 fallback은 `agents/execution.md`를 따르고, 코드 변경은 그 안에서 `test-driven-development` 적용 | 조건부 |
+| 비사소한 기능 설계, 요구 정제, 구현 전 구조 정리 | `brainstorming` | `agents/planning.md` 확인 후, git repo이면 `using-git-worktrees` 적용 뒤 `writing-plans`, non-git이면 바로 `writing-plans` | 불가 |
+| 승인된 spec 또는 plan 기반 구현 | `subagent-driven-development` | 첫 운영 단계와 fallback은 `agents/execution.md`를 따르고, git repo의 기본 경로는 `using-git-worktrees -> subagent-driven-development`, 코드 변경은 그 안에서 `test-driven-development` 적용 | 조건부 |
 | 버그, 회귀, flaky behavior, 테스트 실패 | `systematic-debugging` | fix 단계에서 `test-driven-development` | 불가 |
 | UI/UX가 포함된 기능 설계 | `brainstorming` | `writing-plans`, 설계 검증이 필요하면 `gstack-plan-design-review` | 불가 |
 | 구현 후 UI polish, 시각적 QA | `gstack-design-review` | 필요 시 `gstack-qa` | 불가 |
