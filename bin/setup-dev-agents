@@ -1,0 +1,133 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# shellcheck disable=SC1091
+. "$SCRIPT_DIR/_dev-agent-common.sh"
+
+usage() {
+  cat <<'EOF'
+Usage: ./bin/setup-dev-agents [--host auto|codex|claude]
+
+Options:
+  --host    Bootstrap target. Default: auto
+  --help    Show this message
+
+Environment overrides:
+  DEV_AGENT_HOME
+  BOOTSTRAP_GSTACK_REPO
+  BOOTSTRAP_GSTACK_REF
+  BOOTSTRAP_SUPERPOWERS_REPO
+  BOOTSTRAP_SUPERPOWERS_REF
+EOF
+}
+
+HOST="auto"
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --host)
+      [ $# -ge 2 ] || die "missing value for --host"
+      HOST="$2"
+      shift 2
+      ;;
+    --host=*)
+      HOST="${1#--host=}"
+      shift
+      ;;
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    *)
+      die "unknown argument: $1"
+      ;;
+  esac
+done
+
+case "$HOST" in
+  auto|codex|claude) ;;
+  *) die "unsupported host: $HOST" ;;
+esac
+
+setup_repo_local_codex_gstack() {
+  local target="$DEV_AGENT_REPO_ROOT/.agents/skills/gstack"
+
+  log "Preparing repo-local gstack for Codex..."
+  git_clone_or_update "$GSTACK_REPO" "$GSTACK_REF" "$target"
+  (
+    cd "$target"
+    HOME="$DEV_AGENT_HOME" ./setup --host codex
+  )
+}
+
+setup_repo_local_claude_gstack() {
+  local target="$DEV_AGENT_REPO_ROOT/.claude/skills/gstack"
+
+  log "Preparing repo-local gstack for Claude..."
+  git_clone_or_update "$GSTACK_REPO" "$GSTACK_REF" "$target"
+  (
+    cd "$target"
+    HOME="$DEV_AGENT_HOME" ./setup --host claude --prefix
+  )
+}
+
+setup_codex_superpowers() {
+  local repo_dir="$DEV_AGENT_HOME/.codex/superpowers"
+  local skills_link="$DEV_AGENT_HOME/.agents/skills/superpowers"
+  local config_file="$DEV_AGENT_HOME/.codex/config.toml"
+
+  log "Preparing Codex superpowers..."
+  git_clone_or_update "$SUPERPOWERS_REPO" "$SUPERPOWERS_REF" "$repo_dir"
+  ensure_symlink_dir "$repo_dir/skills" "$skills_link"
+  ensure_codex_multi_agent "$config_file"
+}
+
+ACTION_REQUIRED=0
+
+load_agent_stack_lock
+ensure_supported_platform
+ensure_command git
+ensure_command bun
+
+if host_includes_codex "$HOST"; then
+  setup_repo_local_codex_gstack
+  if [ "$HOST" = "auto" ] && ! command -v codex >/dev/null 2>&1; then
+    warn "codex is not on PATH; skipped Codex global superpowers bootstrap"
+    ACTION_REQUIRED=1
+  else
+    if ! command -v codex >/dev/null 2>&1; then
+      warn "codex is not on PATH; filesystem bootstrap will still be prepared"
+      ACTION_REQUIRED=1
+    fi
+    setup_codex_superpowers
+  fi
+fi
+
+if host_includes_claude "$HOST"; then
+  setup_repo_local_claude_gstack
+  ACTION_REQUIRED=1
+  log ""
+  print_claude_superpowers_manual_steps
+fi
+
+log ""
+log "Bootstrap finished for host=$HOST"
+if host_includes_codex "$HOST"; then
+  log "  Codex repo-local gstack: $DEV_AGENT_REPO_ROOT/.agents/skills/gstack"
+fi
+if host_includes_claude "$HOST"; then
+  log "  Claude repo-local gstack: $DEV_AGENT_REPO_ROOT/.claude/skills/gstack"
+fi
+if [ -d "$DEV_AGENT_HOME/.codex/superpowers" ]; then
+  log "  Codex superpowers: $DEV_AGENT_HOME/.codex/superpowers"
+fi
+log ""
+log "Next:"
+log "  ./bin/check-dev-agents --host $HOST"
+
+if [ "$ACTION_REQUIRED" -eq 1 ]; then
+  exit 2
+fi

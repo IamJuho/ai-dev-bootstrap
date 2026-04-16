@@ -1,0 +1,169 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# shellcheck disable=SC1091
+. "$SCRIPT_DIR/_dev-agent-common.sh"
+
+usage() {
+  cat <<'EOF'
+Usage: ./bin/check-dev-agents [--host auto|codex|claude]
+
+Exit codes:
+  0  all automatically verifiable checks passed
+  1  required bootstrap state is missing or broken
+  2  manual action is still required
+EOF
+}
+
+HOST="auto"
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --host)
+      [ $# -ge 2 ] || die "missing value for --host"
+      HOST="$2"
+      shift 2
+      ;;
+    --host=*)
+      HOST="${1#--host=}"
+      shift
+      ;;
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    *)
+      die "unknown argument: $1"
+      ;;
+  esac
+done
+
+case "$HOST" in
+  auto|codex|claude) ;;
+  *) die "unsupported host: $HOST" ;;
+esac
+
+OVERALL_EXIT=0
+
+mark_ok() {
+  printf 'OK    %s\n' "$1"
+}
+
+mark_action() {
+  printf 'TODO  %s\n' "$1"
+  if [ "$OVERALL_EXIT" -eq 0 ]; then
+    OVERALL_EXIT=2
+  fi
+}
+
+mark_fail() {
+  printf 'FAIL  %s\n' "$1"
+  OVERALL_EXIT=1
+}
+
+check_repo_local_gstack() {
+  local agent_name="$1"
+  local checkout_dir="$2"
+  local sibling_skill="$3"
+
+  if [ ! -d "$checkout_dir/.git" ]; then
+    mark_fail "$agent_name gstack checkout missing: $checkout_dir"
+    return
+  fi
+
+  if [ "$(git_head "$checkout_dir")" != "$GSTACK_REF" ]; then
+    mark_fail "$agent_name gstack ref mismatch: expected $GSTACK_REF"
+  else
+    mark_ok "$agent_name gstack ref pinned to $GSTACK_REF"
+  fi
+
+  if [ -x "$checkout_dir/browse/dist/browse" ]; then
+    mark_ok "$agent_name gstack browse binary is ready"
+  else
+    mark_fail "$agent_name gstack browse binary is missing: $checkout_dir/browse/dist/browse"
+  fi
+
+  if [ -f "$sibling_skill/SKILL.md" ]; then
+    mark_ok "$agent_name skill entry exists: $sibling_skill"
+  else
+    mark_fail "$agent_name skill entry missing: $sibling_skill/SKILL.md"
+  fi
+}
+
+check_codex_superpowers() {
+  local repo_dir="$DEV_AGENT_HOME/.codex/superpowers"
+  local skills_link="$DEV_AGENT_HOME/.agents/skills/superpowers"
+  local config_file="$DEV_AGENT_HOME/.codex/config.toml"
+
+  if [ ! -d "$repo_dir/.git" ]; then
+    mark_fail "Codex superpowers checkout missing: $repo_dir"
+    return
+  fi
+
+  if [ "$(git_head "$repo_dir")" != "$SUPERPOWERS_REF" ]; then
+    mark_fail "Codex superpowers ref mismatch: expected $SUPERPOWERS_REF"
+  else
+    mark_ok "Codex superpowers ref pinned to $SUPERPOWERS_REF"
+  fi
+
+  if path_dir_resolves_to "$skills_link" "$repo_dir/skills"; then
+    mark_ok "Codex superpowers symlink is connected"
+  else
+    mark_fail "Codex superpowers symlink is missing or points elsewhere: $skills_link"
+  fi
+
+  if config_has_multi_agent_true "$config_file"; then
+    mark_ok "Codex config has multi_agent = true"
+  else
+    mark_fail "Codex config is missing multi_agent = true: $config_file"
+  fi
+}
+
+load_agent_stack_lock
+
+if ! platform_is_supported; then
+  mark_fail "unsupported platform: $(current_platform)"
+  exit 1
+fi
+
+printf 'Checking host=%s\n' "$HOST"
+
+if host_includes_codex "$HOST"; then
+  check_repo_local_gstack \
+    "Codex" \
+    "$DEV_AGENT_REPO_ROOT/.agents/skills/gstack" \
+    "$DEV_AGENT_REPO_ROOT/.agents/skills/gstack-review"
+
+  if command -v codex >/dev/null 2>&1; then
+    mark_ok "codex is available on PATH"
+  else
+    mark_action "codex is not on PATH; CLI availability must be completed manually"
+  fi
+
+  if [ "$HOST" = "codex" ] || command -v codex >/dev/null 2>&1; then
+    check_codex_superpowers
+  else
+    mark_action "Codex global superpowers check skipped because codex is not installed"
+  fi
+fi
+
+if host_includes_claude "$HOST"; then
+  check_repo_local_gstack \
+    "Claude" \
+    "$DEV_AGENT_REPO_ROOT/.claude/skills/gstack" \
+    "$DEV_AGENT_REPO_ROOT/.claude/skills/gstack-review"
+
+  if command -v claude >/dev/null 2>&1; then
+    mark_ok "claude is available on PATH"
+  else
+    mark_action "claude is not on PATH; marketplace verification must be done on a Claude-installed machine"
+  fi
+
+  mark_action "Claude superpowers plugin must be installed and visually verified via marketplace"
+fi
+
+printf 'Result exit code: %s\n' "$OVERALL_EXIT"
+exit "$OVERALL_EXIT"

@@ -1,0 +1,238 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+DEV_AGENT_SCRIPT_DIR="$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DEV_AGENT_REPO_ROOT="$(CDPATH= cd -- "$DEV_AGENT_SCRIPT_DIR/.." && pwd)"
+DEV_AGENT_HOME="${DEV_AGENT_HOME:-$HOME}"
+DEV_AGENT_LOCK_FILE="$DEV_AGENT_REPO_ROOT/agent-stack.lock"
+
+log() {
+  printf '%s\n' "$*"
+}
+
+warn() {
+  printf 'warning: %s\n' "$*" >&2
+}
+
+die() {
+  printf 'error: %s\n' "$*" >&2
+  exit 1
+}
+
+load_agent_stack_lock() {
+  [ -f "$DEV_AGENT_LOCK_FILE" ] || die "lock file not found: $DEV_AGENT_LOCK_FILE"
+
+  # shellcheck disable=SC1090
+  . "$DEV_AGENT_LOCK_FILE"
+
+  : "${AGENT_STACK_VERSION:?missing AGENT_STACK_VERSION}"
+  : "${GSTACK_REPO:?missing GSTACK_REPO}"
+  : "${GSTACK_REF:?missing GSTACK_REF}"
+  : "${SUPERPOWERS_REPO:?missing SUPERPOWERS_REPO}"
+  : "${SUPERPOWERS_REF:?missing SUPERPOWERS_REF}"
+
+  GSTACK_REPO="${BOOTSTRAP_GSTACK_REPO:-$GSTACK_REPO}"
+  GSTACK_REF="${BOOTSTRAP_GSTACK_REF:-$GSTACK_REF}"
+  SUPERPOWERS_REPO="${BOOTSTRAP_SUPERPOWERS_REPO:-$SUPERPOWERS_REPO}"
+  SUPERPOWERS_REF="${BOOTSTRAP_SUPERPOWERS_REF:-$SUPERPOWERS_REF}"
+}
+
+current_platform() {
+  uname -s
+}
+
+platform_is_supported() {
+  case "$(current_platform)" in
+    Darwin|Linux) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+ensure_supported_platform() {
+  platform_is_supported || die "unsupported platform: $(current_platform) (supported: macOS, Linux)"
+}
+
+ensure_command() {
+  command -v "$1" >/dev/null 2>&1 || die "'$1' is required"
+}
+
+host_includes_codex() {
+  case "$1" in
+    auto|codex) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+host_includes_claude() {
+  case "$1" in
+    auto|claude) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+git_head() {
+  git -C "$1" rev-parse HEAD
+}
+
+git_clone_or_update() {
+  local repo="$1"
+  local ref="$2"
+  local target="$3"
+  local remote_url=""
+
+  if [ -e "$target" ] && [ ! -d "$target" ]; then
+    die "target exists and is not a directory: $target"
+  fi
+
+  if [ -d "$target/.git" ]; then
+    remote_url="$(git -C "$target" remote get-url origin 2>/dev/null || true)"
+    if [ -n "$remote_url" ] && [ "$remote_url" != "$repo" ]; then
+      warn "updating origin for $target to $repo"
+      git -C "$target" remote set-url origin "$repo"
+    fi
+    git -C "$target" fetch --tags origin
+  else
+    if [ -d "$target" ] && find "$target" -mindepth 1 -print -quit | grep -q .; then
+      die "target already exists and is not an empty git checkout: $target"
+    fi
+    mkdir -p "$(dirname "$target")"
+    git clone "$repo" "$target"
+  fi
+
+  git -C "$target" checkout "$ref"
+
+  if [ "$(git_head "$target")" != "$ref" ]; then
+    die "failed to pin $target to $ref"
+  fi
+}
+
+ensure_symlink_dir() {
+  local src="$1"
+  local dst="$2"
+
+  mkdir -p "$(dirname "$dst")"
+
+  if [ -e "$dst" ] && [ ! -L "$dst" ]; then
+    if [ -d "$dst" ] && path_dir_resolves_to "$dst" "$src"; then
+      return 0
+    fi
+    die "refusing to replace non-symlink path: $dst"
+  fi
+
+  ln -snf "$src" "$dst"
+}
+
+path_dir_resolves_to() {
+  local actual_path="$1"
+  local expected_path="$2"
+  local actual_resolved=""
+  local expected_resolved=""
+
+  [ -d "$actual_path" ] || return 1
+  [ -d "$expected_path" ] || return 1
+
+  actual_resolved="$(CDPATH= cd -- "$actual_path" 2>/dev/null && pwd -P)" || return 1
+  expected_resolved="$(CDPATH= cd -- "$expected_path" 2>/dev/null && pwd -P)" || return 1
+
+  [ "$actual_resolved" = "$expected_resolved" ]
+}
+
+config_has_multi_agent_true() {
+  local config_file="$1"
+
+  [ -f "$config_file" ] || return 1
+
+  awk '
+    BEGIN { in_features = 0; found = 0 }
+    /^\[features\][[:space:]]*$/ { in_features = 1; next }
+    /^\[[^]]+\][[:space:]]*$/ { in_features = 0 }
+    in_features && /^[[:space:]]*multi_agent[[:space:]]*=[[:space:]]*true([[:space:]]*#.*)?$/ { found = 1 }
+    END { exit found ? 0 : 1 }
+  ' "$config_file"
+}
+
+ensure_codex_multi_agent() {
+  local config_file="$1"
+  local tmp_file=""
+
+  mkdir -p "$(dirname "$config_file")"
+
+  if [ ! -f "$config_file" ]; then
+    cat > "$config_file" <<'EOF'
+[features]
+multi_agent = true
+EOF
+    return 0
+  fi
+
+  tmp_file="$(mktemp)"
+
+  awk '
+    BEGIN {
+      in_features = 0
+      features_seen = 0
+      multi_written = 0
+    }
+    function write_multi() {
+      print "multi_agent = true"
+      multi_written = 1
+    }
+    {
+      if ($0 ~ /^\[features\][[:space:]]*$/) {
+        features_seen = 1
+        in_features = 1
+        print
+        next
+      }
+
+      if (in_features && $0 ~ /^\[[^]]+\][[:space:]]*$/) {
+        if (!multi_written) {
+          write_multi()
+        }
+        in_features = 0
+        print
+        next
+      }
+
+      if (in_features && $0 ~ /^[[:space:]]*multi_agent[[:space:]]*=/) {
+        if (!multi_written) {
+          write_multi()
+        }
+        next
+      }
+
+      print
+    }
+    END {
+      if (in_features && !multi_written) {
+        write_multi()
+      }
+
+      if (!features_seen) {
+        if (NR > 0) {
+          print ""
+        }
+        print "[features]"
+        print "multi_agent = true"
+      }
+    }
+  ' "$config_file" > "$tmp_file"
+
+  mv "$tmp_file" "$config_file"
+}
+
+print_claude_superpowers_manual_steps() {
+  cat <<'EOF'
+Claude superpowers는 자동 설치하지 않습니다.
+
+권장:
+  /plugin install superpowers@claude-plugins-official
+
+공식 marketplace가 보이지 않으면:
+  /plugin marketplace add obra/superpowers-marketplace
+  /plugin install superpowers@superpowers-marketplace
+
+설치 후 Claude를 다시 시작하세요.
+EOF
+}
