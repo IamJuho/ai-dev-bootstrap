@@ -56,4 +56,4 @@
 - `agents/planning.md`
 - `agents/execution.md`
 - 첫 스킬, fast path 기준, git repo 기본 실행 경로가 바뀌면 Dry Run Table을 즉시 갱신한다.
-- 점검 후에는 `scripts/validate-operations-docs.sh`를 실행해 경로와 핵심 계약이 살아 있는지 확인한다.
+- 점검 후에는 `AGENTS.md`의 참조 경로와 이 문서의 예시가 현재 라우팅 규칙과 여전히 맞는지 직접 확인한다.

@@ -84,4 +84,4 @@
 - `agents/verification.md`
 - `agents/safety.md`
 - 기본 isolation 수단, fast path 경계, checkpoint 기대치가 바뀌면 이 문서도 즉시 수정한다.
-- 수정 뒤에는 `scripts/validate-operations-docs.sh`를 실행해 운영 문서와 루터 참조가 여전히 맞는지 확인한다.
+- 수정 뒤에는 운영 문서의 경로, `AGENTS.md`의 참조, 그리고 현재 repo 상태에 대한 설명이 여전히 맞는지 직접 확인한다.
