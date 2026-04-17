@@ -12,11 +12,13 @@
 ## 세션 시작 순서
 
 1. 먼저 `AGENTS.md`를 읽고 언어 정책과 fast routing을 확인한다.
-2. 요청이 애매하거나 greenfield면 `agents/routing.md`를 읽는다.
-3. 설계나 계획을 잠가야 하면 `agents/planning.md`를 읽는다.
-4. repo-tracked 변경이 생기면 `agents/execution.md`를 읽는다.
-5. 위험한 명령, 배포, 강한 범위 통제가 필요하면 `agents/safety.md`를 읽는다.
-6. 완료를 말하기 직전에는 항상 `agents/verification.md`를 다시 확인한다.
+2. fast path가 아니고 bootstrap 상태가 불명확하면 `./bin/check-dev-agents --host codex --phase core`를 먼저 실행한다.
+3. 위 점검이 `1`이면 `./bin/setup-dev-agents --host codex --phase core`로 최소 기반을 맞춘다.
+4. 요청이 애매하거나 greenfield면 `agents/routing.md`를 읽는다.
+5. 설계나 계획을 잠가야 하면 `agents/planning.md`를 읽는다.
+6. repo-tracked 변경이 생기면 `agents/execution.md`를 읽는다.
+7. 위험한 명령, 배포, 강한 범위 통제가 필요하면 `agents/safety.md`를 읽는다.
+8. 완료를 말하기 직전에는 항상 `agents/verification.md`를 다시 확인한다.
 
 ## 구현 시작 규칙
 
@@ -27,6 +29,7 @@
 - 사용자 대상 흐름 변경
 - handoff 가능성이 높은 작업
 - 현재 저장소 상태를 바꾸는 비사소한 변경
+- browser, QA, visual polish처럼 `browse` 의존 skill이 필요하면 구현 전에 `./bin/check-dev-agents --host codex --phase full`로 전체 bootstrap 상태도 같이 확인한다.
 
 ## 현재 작업 공간에 남아도 되는 경우
 
@@ -67,7 +70,8 @@
 2. 현재 branch와 worktree가 의도한 위치인지 확인한다.
 3. 필요한 문서만 다시 읽는다. 전 문서를 매번 다 읽지 않는다.
 4. 남은 작업이 fast path인지, 다시 plan lane으로 올라가야 하는지 재판단한다.
-5. 완료 직전이면 새로 검증을 돌린다.
+5. browser/QA/visual review가 필요해졌는데 현재가 `core`라면 `full` bootstrap으로 올릴지 먼저 판단한다.
+6. 완료 직전이면 새로 검증을 돌린다.
 
 ## 과잉 문서화 방지 기준
 

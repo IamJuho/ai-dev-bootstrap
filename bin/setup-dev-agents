@@ -9,10 +9,11 @@ SCRIPT_DIR="$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 usage() {
   cat <<'EOF'
-Usage: ./bin/setup-dev-agents [--host auto|codex|claude]
+Usage: ./bin/setup-dev-agents [--host auto|codex|claude] [--phase core|full]
 
 Options:
   --host    Bootstrap target. Default: auto
+  --phase   Bootstrap phase. Default: full
   --help    Show this message
 
 Environment overrides:
@@ -23,6 +24,7 @@ EOF
 }
 
 HOST="auto"
+PHASE=""
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -35,6 +37,15 @@ while [ $# -gt 0 ]; do
       HOST="${1#--host=}"
       shift
       ;;
+    --phase)
+      [ $# -ge 2 ] || die "missing value for --phase"
+      PHASE="$2"
+      shift 2
+      ;;
+    --phase=*)
+      PHASE="${1#--phase=}"
+      shift
+      ;;
     --help|-h)
       usage
       exit 0
@@ -45,11 +56,205 @@ while [ $# -gt 0 ]; do
   esac
 done
 
+claude_link_name_for_skill_dir() {
+  local skill_dir="$1"
+  local prefix_enabled="$2"
+  local dir_name=""
+  local skill_name=""
+
+  dir_name="$(basename "$skill_dir")"
+  skill_name="$(grep -m1 '^name:' "$skill_dir/SKILL.md" 2>/dev/null | sed 's/^name:[[:space:]]*//' | tr -d '[:space:]')"
+  [ -n "$skill_name" ] || skill_name="$dir_name"
+
+  if [ "$prefix_enabled" = "true" ]; then
+    case "$skill_name" in
+      gstack-*) printf '%s\n' "$skill_name" ;;
+      *) printf 'gstack-%s\n' "$skill_name" ;;
+    esac
+  else
+    printf '%s\n' "$skill_name"
+  fi
+}
+
+cleanup_phase_excluded_codex_links() {
+  local checkout_dir="$1"
+  local skills_root="$2"
+  local phase="$3"
+  local agents_dir="$checkout_dir/.agents/skills"
+  local skill_dir=""
+  local skill_name=""
+  local target=""
+
+  [ -d "$agents_dir" ] || return 0
+
+  for skill_dir in "$agents_dir"/gstack*/; do
+    [ -d "$skill_dir" ] || continue
+    [ -f "$skill_dir/SKILL.md" ] || continue
+    skill_name="$(basename "$skill_dir")"
+    [ "$skill_name" = "gstack" ] && continue
+    phase_excludes_gstack_skill "$phase" "$skill_name" || continue
+    target="$skills_root/$skill_name"
+    if [ -L "$target" ] && path_dir_resolves_to "$target" "$skill_dir"; then
+      rm -f "$target"
+    fi
+  done
+}
+
+link_phase_codex_skills() {
+  local checkout_dir="$1"
+  local skills_root="$2"
+  local phase="$3"
+  local agents_dir="$checkout_dir/.agents/skills"
+  local skill_dir=""
+  local skill_name=""
+  local target=""
+
+  [ -d "$agents_dir" ] || die "generated codex skills are missing: $agents_dir"
+
+  mkdir -p "$skills_root"
+  cleanup_phase_excluded_codex_links "$checkout_dir" "$skills_root" "$phase"
+
+  for skill_dir in "$agents_dir"/gstack*/; do
+    [ -d "$skill_dir" ] || continue
+    [ -f "$skill_dir/SKILL.md" ] || continue
+    skill_name="$(basename "$skill_dir")"
+    [ "$skill_name" = "gstack" ] && continue
+
+    if phase_excludes_gstack_skill "$phase" "$skill_name"; then
+      continue
+    fi
+
+    target="$skills_root/$skill_name"
+    if [ -e "$target" ] && [ ! -L "$target" ]; then
+      die "refusing to replace non-symlink Codex skill path: $target"
+    fi
+    ln -snf "$skill_dir" "$target"
+  done
+}
+
+cleanup_phase_excluded_claude_links() {
+  local checkout_dir="$1"
+  local skills_root="$2"
+  local phase="$3"
+  local prefix_enabled="$4"
+  local skill_dir=""
+  local skill_name=""
+  local target=""
+  local link_dest=""
+
+  for skill_dir in "$checkout_dir"/*/; do
+    [ -d "$skill_dir" ] || continue
+    [ -f "$skill_dir/SKILL.md" ] || continue
+    [ "$(basename "$skill_dir")" = "node_modules" ] && continue
+    skill_name="$(claude_link_name_for_skill_dir "$skill_dir" "$prefix_enabled")"
+    phase_excludes_gstack_skill "$phase" "$skill_name" || continue
+
+    target="$skills_root/$skill_name"
+    if [ -L "$target" ]; then
+      link_dest="$(readlink "$target" 2>/dev/null || true)"
+      case "$link_dest" in
+        "$checkout_dir"/*)
+          rm -f "$target"
+          ;;
+      esac
+    elif [ -d "$target" ] && [ -L "$target/SKILL.md" ]; then
+      link_dest="$(readlink "$target/SKILL.md" 2>/dev/null || true)"
+      case "$link_dest" in
+        "$checkout_dir"/*)
+          rm -rf "$target"
+          ;;
+      esac
+    fi
+  done
+}
+
+link_phase_claude_skills() {
+  local checkout_dir="$1"
+  local skills_root="$2"
+  local phase="$3"
+  local prefix_enabled="$4"
+  local skill_dir=""
+  local skill_name=""
+  local target=""
+
+  mkdir -p "$skills_root"
+  cleanup_phase_excluded_claude_links "$checkout_dir" "$skills_root" "$phase" "$prefix_enabled"
+
+  for skill_dir in "$checkout_dir"/*/; do
+    [ -d "$skill_dir" ] || continue
+    [ -f "$skill_dir/SKILL.md" ] || continue
+    [ "$(basename "$skill_dir")" = "node_modules" ] && continue
+
+    skill_name="$(claude_link_name_for_skill_dir "$skill_dir" "$prefix_enabled")"
+    if phase_excludes_gstack_skill "$phase" "$skill_name"; then
+      continue
+    fi
+
+    target="$skills_root/$skill_name"
+    if [ -L "$target" ]; then
+      rm -f "$target"
+    elif [ -e "$target" ] && [ ! -d "$target" ]; then
+      die "refusing to replace non-directory Claude skill path: $target"
+    fi
+
+    mkdir -p "$target"
+    if [ -e "$target/SKILL.md" ] && [ ! -L "$target/SKILL.md" ]; then
+      die "refusing to replace non-symlink Claude SKILL.md: $target/SKILL.md"
+    fi
+    rm -f "$target/SKILL.md"
+    ln -snf "$skill_dir/SKILL.md" "$target/SKILL.md"
+  done
+}
+
+run_repo_local_gstack_setup() {
+  local host_flag="$1"
+  local skills_root="$2"
+  local phase="$3"
+  local extra_flag="${4:-}"
+  local checkout_dir="$skills_root/gstack"
+
+  case "$phase" in
+    full)
+      (
+        cd "$checkout_dir"
+        if [ -n "$extra_flag" ]; then
+          HOME="$DEV_AGENT_HOME" ./setup --host "$host_flag" "$extra_flag"
+        else
+          HOME="$DEV_AGENT_HOME" ./setup --host "$host_flag"
+        fi
+      )
+      ;;
+    core)
+      case "$host_flag" in
+        codex)
+          (
+            cd "$checkout_dir"
+            HOME="$DEV_AGENT_HOME" bun install --frozen-lockfile || HOME="$DEV_AGENT_HOME" bun install
+            HOME="$DEV_AGENT_HOME" bun run gen:skill-docs --host codex
+          )
+          link_phase_codex_skills "$checkout_dir" "$skills_root" "$phase"
+          ;;
+        claude)
+          "$checkout_dir/bin/gstack-patch-names" "$checkout_dir" true
+          link_phase_claude_skills "$checkout_dir" "$skills_root" "$phase" true
+          ;;
+        *)
+          die "unsupported gstack host for phase bootstrap: $host_flag"
+          ;;
+      esac
+      ;;
+    *)
+      die "unsupported phase for repo-local gstack setup: $phase"
+      ;;
+  esac
+}
+
 install_repo_local_gstack() {
   local agent_name="$1"
   local host_flag="$2"
   local skills_root="$3"
-  local extra_flag="${4:-}"
+  local phase="$4"
+  local extra_flag="${5:-}"
   local tmp_root=""
   local tmp_skills_root=""
   local tmp_scope_dir=""
@@ -61,17 +266,10 @@ install_repo_local_gstack() {
   tmp_scope_dir="$(basename "$(dirname "$skills_root")")"
   tmp_skills_root="$tmp_root/$tmp_scope_dir/skills"
   git_clone_latest_default_branch "$GSTACK_REPO" "$tmp_skills_root/gstack"
-  (
-    cd "$tmp_skills_root/gstack"
-    if [ -n "$extra_flag" ]; then
-      HOME="$DEV_AGENT_HOME" ./setup --host "$host_flag" "$extra_flag"
-    else
-      HOME="$DEV_AGENT_HOME" ./setup --host "$host_flag"
-    fi
-  )
-  if ! gstack_install_is_valid "$tmp_skills_root"; then
+  run_repo_local_gstack_setup "$host_flag" "$tmp_skills_root" "$phase" "$extra_flag"
+  if ! gstack_install_is_valid "$tmp_skills_root" "$phase"; then
     safe_remove_dir "$tmp_root"
-    die "$agent_name gstack candidate does not satisfy repo policy"
+    die "$agent_name gstack candidate does not satisfy repo policy for phase=$phase"
   fi
 
   if [ -e "$target" ]; then
@@ -83,47 +281,26 @@ install_repo_local_gstack() {
   mv "$tmp_skills_root/gstack" "$target"
   safe_remove_dir "$tmp_root"
 
-  if ! (
-    cd "$target"
-    if [ -n "$extra_flag" ]; then
-      HOME="$DEV_AGENT_HOME" ./setup --host "$host_flag" "$extra_flag"
-    else
-      HOME="$DEV_AGENT_HOME" ./setup --host "$host_flag"
-    fi
-  ); then
+  if ! run_repo_local_gstack_setup "$host_flag" "$skills_root" "$phase" "$extra_flag"; then
     safe_remove_dir "$target"
     if [ -n "$backup_target" ] && [ -e "$backup_target" ]; then
       mv "$backup_target" "$target"
-      if ! (
-        cd "$target"
-        if [ -n "$extra_flag" ]; then
-          HOME="$DEV_AGENT_HOME" ./setup --host "$host_flag" "$extra_flag"
-        else
-          HOME="$DEV_AGENT_HOME" ./setup --host "$host_flag"
-        fi
-      ); then
+      if ! run_repo_local_gstack_setup "$host_flag" "$skills_root" "$phase" "$extra_flag"; then
         warn "failed to re-run $agent_name gstack setup while restoring previous checkout"
       fi
     fi
     die "$agent_name gstack setup failed after update; restored previous version"
   fi
 
-  if ! gstack_install_is_valid "$skills_root"; then
+  if ! gstack_install_is_valid "$skills_root" "$phase"; then
     safe_remove_dir "$target"
     if [ -n "$backup_target" ] && [ -e "$backup_target" ]; then
       mv "$backup_target" "$target"
-      if ! (
-        cd "$target"
-        if [ -n "$extra_flag" ]; then
-          HOME="$DEV_AGENT_HOME" ./setup --host "$host_flag" "$extra_flag"
-        else
-          HOME="$DEV_AGENT_HOME" ./setup --host "$host_flag"
-        fi
-      ); then
+      if ! run_repo_local_gstack_setup "$host_flag" "$skills_root" "$phase" "$extra_flag"; then
         warn "failed to re-run $agent_name gstack setup while restoring previous checkout"
       fi
     fi
-    die "$agent_name gstack update does not satisfy repo policy; restored previous version"
+    die "$agent_name gstack update does not satisfy repo policy for phase=$phase; restored previous version"
   fi
 
   safe_remove_dir "$backup_target"
@@ -172,13 +349,15 @@ setup_codex_superpowers() {
 ACTION_REQUIRED=0
 
 load_agent_stack_policy
+PHASE="${PHASE:-$DEFAULT_BOOTSTRAP_PHASE}"
 ensure_supported_host "$HOST"
+ensure_supported_phase "$PHASE"
 ensure_supported_platform
 ensure_command git
 ensure_command bun
 
 if host_includes_codex "$HOST"; then
-  install_repo_local_gstack "Codex" "codex" "$DEV_AGENT_REPO_ROOT/.agents/skills"
+  install_repo_local_gstack "Codex" "codex" "$DEV_AGENT_REPO_ROOT/.agents/skills" "$PHASE"
   if [ "$HOST" = "auto" ] && ! command -v codex >/dev/null 2>&1; then
     warn "codex is not on PATH; skipped Codex global superpowers bootstrap"
     ACTION_REQUIRED=1
@@ -192,14 +371,14 @@ if host_includes_codex "$HOST"; then
 fi
 
 if host_includes_claude "$HOST"; then
-  install_repo_local_gstack "Claude" "claude" "$DEV_AGENT_REPO_ROOT/.claude/skills" "--prefix"
+  install_repo_local_gstack "Claude" "claude" "$DEV_AGENT_REPO_ROOT/.claude/skills" "$PHASE" "--prefix"
   ACTION_REQUIRED=1
   log ""
   print_claude_superpowers_manual_steps
 fi
 
 log ""
-log "Bootstrap finished for host=$HOST"
+log "Bootstrap finished for host=$HOST phase=$PHASE"
 log "  Policy: latest compatible upstream tracked by agent-stack.policy.sh"
 if host_includes_codex "$HOST"; then
   log "  Codex repo-local gstack: $DEV_AGENT_REPO_ROOT/.agents/skills/gstack"
@@ -212,7 +391,7 @@ if [ -d "$DEV_AGENT_HOME/.codex/superpowers" ]; then
 fi
 log ""
 log "Next:"
-log "  ./bin/check-dev-agents --host $HOST"
+log "  ./bin/check-dev-agents --host $HOST --phase $PHASE"
 
 if [ "$ACTION_REQUIRED" -eq 1 ]; then
   exit 2

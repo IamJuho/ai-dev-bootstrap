@@ -33,8 +33,8 @@
 저장소 루트에서 실행한다.
 
 ```bash
-./bin/setup-dev-agents --host codex
-./bin/check-dev-agents --host codex
+./bin/setup-dev-agents --host codex --phase core
+./bin/check-dev-agents --host codex --phase core
 ```
 
 자주 쓰는 모드:
@@ -42,6 +42,23 @@
 - `--host codex`: 가장 단순한 기본 권장 경로다.
 - `--host auto`: Codex + Claude 경로를 모두 준비한다. Claude `superpowers`는 수동 단계가 남으므로 정상 동작이어도 종료 코드는 `2`가 될 수 있다.
 - `--host claude`: Claude 기준으로만 준비하고 점검한다.
+- `--phase core`: 최신 compatible 최소 bootstrap이다. planning, review, non-browser specialist 흐름을 먼저 여는 권장 시작점이다.
+- `--phase full`: browser/QA/visual review까지 포함한 전체 bootstrap이다. `gstack-browse`, `gstack-qa`, `gstack-qa-only`, `gstack-design-review`를 실제로 써야 할 때 올린다.
+
+처음 들어온 팀원이나 새 세션에서 bootstrap 상태가 불명확하면 아래 순서를 권장한다.
+
+```bash
+./bin/check-dev-agents --host codex --phase core
+./bin/setup-dev-agents --host codex --phase core
+./bin/check-dev-agents --host codex --phase core
+```
+
+browser/QA/visual polish가 필요해지는 시점에만 `full`로 확장한다.
+
+```bash
+./bin/setup-dev-agents --host codex --phase full
+./bin/check-dev-agents --host codex --phase full
+```
 
 ## 필요한 도구
 
@@ -62,7 +79,10 @@
 - 각 upstream repo의 default branch 최신 상태를 가져와 최신 compatible 설치를 시도한다.
 - `.agents/skills/gstack`
 - `.claude/skills/gstack`
-- 각 checkout 안에서 upstream `./setup`을 호출해 repo-local skill entry를 생성한다.
+- `--phase core`에서는 최신 compatible 최소 경로만 만든다.
+- Codex는 `bun install`과 `gen:skill-docs --host codex`만 수행하고, browser 의존 skill entry는 repo-local 노출에서 제외한다.
+- Claude는 prefixed skill entry만 최소로 다시 연결하고, browser 의존 skill entry는 repo-local 노출에서 제외한다.
+- `--phase full`에서는 기존과 동일하게 upstream `./setup`을 호출해 repo-local skill entry를 생성한다.
 - repo-local `gstack` 업데이트는 해당 `gstack` checkout 디렉토리만 교체하고, 같은 skills 루트의 다른 내용은 보존한 채 필요한 sibling skill entry를 다시 생성한다.
 - Codex 경로에서는 `superpowers`를 `~/.codex/superpowers`에 최신 compatible 상태로 맞추고, `~/.agents/skills/superpowers` symlink를 만든다.
 - `~/.codex/config.toml`의 `[features]` 아래에 `multi_agent = true`를 보장한다.
@@ -72,6 +92,8 @@
 `bin/check-dev-agents`
 
 - 현재 로컬 설치가 `agent-stack.policy.sh`의 contract를 만족하는지 확인한다.
+- `--phase core`는 최소 contract만 본다. browser binary나 browser-dependent skill entry는 요구하지 않는다.
+- `--phase full`은 browser binary와 full contract까지 모두 확인한다.
 - ref pin 여부는 확인하지 않는다.
 - Codex `superpowers` symlink와 `multi_agent = true` 상태를 확인한다.
 - Claude `superpowers`는 자동 검증하지 않는다.
@@ -111,11 +133,12 @@ Claude에서 `superpowers`는 repo가 아니라 plugin marketplace 설치가 기
 
 ```bash
 git pull
-./bin/setup-dev-agents --host codex
-./bin/check-dev-agents --host codex
+./bin/setup-dev-agents --host codex --phase core
+./bin/check-dev-agents --host codex --phase core
 ```
 
 branch를 바꾸거나 프로젝트 문서가 업데이트된 뒤에는 `setup-dev-agents`를 다시 실행해 현재 프로젝트 정책에 맞는 최신 compatible 상태로 재정렬한다.
+browser/QA/visual review가 필요한 branch에서는 같은 흐름으로 `--phase full`을 다시 실행한다.
 
 ## 참고
 

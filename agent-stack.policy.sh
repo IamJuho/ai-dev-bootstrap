@@ -10,6 +10,8 @@ SUPERPOWERS_TRACK_MODE="origin-default-branch"
 
 SUPPORTED_HOSTS="auto codex claude"
 SUPPORTED_PLATFORMS="Darwin Linux"
+SUPPORTED_PHASES="core full"
+DEFAULT_BOOTSTRAP_PHASE="full"
 
 REQUIRED_GSTACK_PREFIX="gstack-"
 REQUIRED_CODEX_FEATURE_MULTI_AGENT="true"
@@ -27,18 +29,39 @@ REQUIRED_SUPERPOWERS_SKILLS=(
   "writing-plans"
 )
 
-REQUIRED_GSTACK_SKILLS=(
-  "gstack-browse"
+REQUIRED_GSTACK_SKILLS_CORE=(
   "gstack-careful"
   "gstack-checkpoint"
-  "gstack-design-review"
   "gstack-freeze"
   "gstack-guard"
   "gstack-office-hours"
   "gstack-plan-ceo-review"
   "gstack-plan-design-review"
   "gstack-plan-eng-review"
+  "gstack-review"
+)
+
+REQUIRED_GSTACK_SKILLS_FULL=(
+  "${REQUIRED_GSTACK_SKILLS_CORE[@]}"
+  "gstack-browse"
   "gstack-qa"
   "gstack-qa-only"
-  "gstack-review"
+  "gstack-design-review"
+)
+
+CORE_EXCLUDED_GSTACK_SKILLS=(
+  "gstack-benchmark"
+  "gstack-browse"
+  "gstack-canary"
+  "gstack-connect-chrome"
+  "gstack-design-review"
+  "gstack-open-gstack-browser"
+  "gstack-pair-agent"
+  "gstack-qa"
+  "gstack-qa-only"
+  "gstack-setup-browser-cookies"
+)
+
+REQUIRED_GSTACK_SKILLS=(
+  "${REQUIRED_GSTACK_SKILLS_FULL[@]}"
 )

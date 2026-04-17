@@ -14,11 +14,12 @@
 | 요청 예시 | 분류 | 첫 스킬 | 첫 운영 단계 | 왜 이렇게 가는가 |
 | --- | --- | --- | --- | --- |
 | "이 아이디어가 실제로 만들 가치가 있을까?" | 아이디어 | `gstack-office-hours` | 아이디어 정리와 문제 정의를 남긴다 | 신규 아이디어는 구현보다 problem framing이 먼저다 |
+| "새 세션인데 bootstrap 상태가 기억나지 않아. 바로 작업해도 돼?" | 세션 준비 | 관련 구현 skill 이전에 `core` bootstrap 확인 | `./bin/check-dev-agents --host codex --phase core`로 최소 기반부터 확인한다 | fast path가 아니면 세션 기반이 먼저 잠겨야 첫 액션이 흔들리지 않는다 |
 | "기능은 대충 정했는데 요구와 구조가 아직 흐릿해" | 설계 | `brainstorming` | `agents/planning.md`를 따라 `Spec Lane`으로 정리한다 | 구현 전에 요구와 경계를 잠가야 한다 |
 | "승인된 계획대로 이번 작업을 진행해줘" | 계획된 구현 | `subagent-driven-development` | git repo 기본 경로인 `using-git-worktrees`부터 시작한다 | 이 repo는 git 기반이며 비사소한 변경은 isolation이 기본이다 |
 | "어제부터 로그인 회귀가 생겼는데 원인을 모르겠어" | 버그 | `systematic-debugging` | 증상과 재현 조건을 고정하고, 수정 직전 `test-driven-development`를 적용한다 | 원인 확인 없이 바로 고치면 재발과 오진 위험이 크다 |
 | "이 흐름의 UX가 어색한지 구현 전에 봐줘" | UI/UX 설계 | `brainstorming` | 필요 시 `gstack-plan-design-review`를 넣어 설계를 다듬는다 | UX는 구현 전 설계 검증이 비용 대비 효율이 높다 |
-| "이미 만든 화면이 좀 AI스럽다. 마감 전에 다듬어줘" | UI polish | `gstack-design-review` | 시각적 증거와 함께 polish 항목을 반영한다 | 구현 후 visual QA는 설계 문서보다 실제 결과물을 봐야 한다 |
+| "이미 만든 화면이 좀 AI스럽다. 마감 전에 다듬어줘" | UI polish | `gstack-design-review` | 먼저 `./bin/check-dev-agents --host codex --phase full`로 browser lane을 연 뒤 시각적 증거와 함께 polish 항목을 반영한다 | 구현 후 visual QA는 설계 문서보다 실제 결과물을 봐야 하고, 이 lane은 full bootstrap을 전제한다 |
 | "이 변경셋이 안전한지 리뷰해줘" | 리뷰 | `gstack-review` | 필요한 경우 `verification-before-completion`로 사실 여부를 잠근다 | 리뷰는 정확성, 위험, 누락을 먼저 본다 |
 | "이제 끝난 것 같은데 완료라고 말해도 돼?" | 완료 직전 검증 | `verification-before-completion` | 주장에 대응하는 검증 명령을 바로 실행한다 | 증거 없이 완료를 말하면 라우터 목적이 무너진다 |
 | "오늘은 여기까지 하고 다음 세션에서 이어가자" | 세션 종료 | `checkpoint` | 현재 branch, worktree, 결정 사항, 남은 작업을 저장한다 | handoff 복원성이 없으면 다음 세션에서 맥락 비용이 커진다 |

@@ -9,16 +9,21 @@ SCRIPT_DIR="$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 usage() {
   cat <<'EOF'
-Usage: ./bin/check-dev-agents [--host auto|codex|claude]
+Usage: ./bin/check-dev-agents [--host auto|codex|claude] [--phase core|full]
 
 Exit codes:
   0  all automatically verifiable checks passed
   1  required bootstrap state is missing or broken
   2  manual action is still required
+
+Options:
+  --host    Bootstrap target to verify. Default: auto
+  --phase   Bootstrap phase to verify. Default: full
 EOF
 }
 
 HOST="auto"
+PHASE=""
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -29,6 +34,15 @@ while [ $# -gt 0 ]; do
       ;;
     --host=*)
       HOST="${1#--host=}"
+      shift
+      ;;
+    --phase)
+      [ $# -ge 2 ] || die "missing value for --phase"
+      PHASE="$2"
+      shift 2
+      ;;
+    --phase=*)
+      PHASE="${1#--phase=}"
       shift
       ;;
     --help|-h)
@@ -62,6 +76,7 @@ mark_fail() {
 check_repo_local_gstack() {
   local agent_name="$1"
   local skills_root="$2"
+  local phase="$3"
   local checkout_dir="$skills_root/gstack"
   local missing_skill=""
 
@@ -72,21 +87,25 @@ check_repo_local_gstack() {
 
   mark_ok "$agent_name gstack checkout exists"
 
-  if [ -x "$checkout_dir/browse/dist/browse" ]; then
-    mark_ok "$agent_name gstack browse binary is ready"
+  if phase_requires_browse_binary "$phase"; then
+    if [ -x "$checkout_dir/browse/dist/browse" ]; then
+      mark_ok "$agent_name gstack browse binary is ready"
+    else
+      mark_fail "$agent_name gstack browse binary is missing: $checkout_dir/browse/dist/browse"
+    fi
   else
-    mark_fail "$agent_name gstack browse binary is missing: $checkout_dir/browse/dist/browse"
+    mark_ok "$agent_name gstack browse binary is not required for phase=$phase"
   fi
 
   while IFS= read -r missing_skill; do
     [ -n "$missing_skill" ] || continue
     mark_fail "$agent_name required gstack skill missing: $skills_root/$missing_skill/SKILL.md"
   done <<EOF
-$(list_missing_skills "$skills_root" "${REQUIRED_GSTACK_SKILLS[@]}" || true)
+$(list_missing_phase_gstack_skills "$skills_root" "$phase" || true)
 EOF
 
-  if list_missing_skills "$skills_root" "${REQUIRED_GSTACK_SKILLS[@]}" >/dev/null 2>&1; then
-    mark_ok "$agent_name required gstack skills satisfy repo policy"
+  if list_missing_phase_gstack_skills "$skills_root" "$phase" >/dev/null 2>&1; then
+    mark_ok "$agent_name required gstack skills satisfy repo policy for phase=$phase"
   fi
 }
 
@@ -128,20 +147,23 @@ EOF
 }
 
 load_agent_stack_policy
+PHASE="${PHASE:-$DEFAULT_BOOTSTRAP_PHASE}"
 ensure_supported_host "$HOST"
+ensure_supported_phase "$PHASE"
 
 if ! platform_is_supported; then
   mark_fail "unsupported platform: $(current_platform)"
   exit 1
 fi
 
-printf 'Checking host=%s\n' "$HOST"
+printf 'Checking host=%s phase=%s\n' "$HOST" "$PHASE"
 printf 'Policy file: %s\n' "$DEV_AGENT_POLICY_FILE"
 
 if host_includes_codex "$HOST"; then
   check_repo_local_gstack \
     "Codex" \
-    "$DEV_AGENT_REPO_ROOT/.agents/skills"
+    "$DEV_AGENT_REPO_ROOT/.agents/skills" \
+    "$PHASE"
 
   if command -v codex >/dev/null 2>&1; then
     mark_ok "codex is available on PATH"
@@ -159,7 +181,8 @@ fi
 if host_includes_claude "$HOST"; then
   check_repo_local_gstack \
     "Claude" \
-    "$DEV_AGENT_REPO_ROOT/.claude/skills"
+    "$DEV_AGENT_REPO_ROOT/.claude/skills" \
+    "$PHASE"
 
   if command -v claude >/dev/null 2>&1; then
     mark_ok "claude is available on PATH"

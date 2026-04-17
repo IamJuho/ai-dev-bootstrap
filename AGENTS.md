@@ -16,6 +16,9 @@
 - gstack skill 이름은 항상 `gstack-` prefix로 쓴다.
 - 예외는 신규 아이디어, scope 탐색, 제품 방향 논의다. 이런 요청은 `gstack-office-hours`를 첫 액션으로 둔다.
 - 비사소한 구현은 승인된 설계나 계획 없이 바로 시작하지 않는다.
+- fast path가 아니고 bootstrap 상태가 불명확하면 먼저 `./bin/check-dev-agents --host codex --phase core`로 현재 세션 기반을 확인한다.
+- 위 점검이 `1`을 반환하면 구현이나 리뷰 전에 `./bin/setup-dev-agents --host codex --phase core`로 최소 기반을 먼저 맞춘다.
+- browser, QA, visual polish처럼 `browse` 의존 skill이 필요한 작업은 `core`로 시작하지 않고 `./bin/setup-dev-agents --host codex --phase full` 상태를 기준으로 본다.
 - git repo에서는 worktree를 기본 isolation 경로로 본다.
 - 코드 변경, 문서 개편, 설정 수정처럼 repo 상태를 바꾸는 작업은 항상 가장 작은 범위로 끝낸다.
 - 완료, 해결, 통과를 주장하기 전에는 반드시 `verification-before-completion` 기준으로 실제 검증을 먼저 한다.
@@ -35,7 +38,7 @@
 - 승인된 계획의 구현: `subagent-driven-development`, 단 git repo에서는 `using-git-worktrees`가 기본 실행 경로이고 세부 fallback은 `agents/execution.md`를 따른다.
 - 버그, 회귀, flaky behavior, 원인 분석: `systematic-debugging`
 - UI/UX 계획: `brainstorming`, 이후 필요 시 `gstack-plan-design-review`
-- 구현 후 UI polish: `gstack-design-review`
+- 구현 후 UI polish: `gstack-design-review`, 단 이 lane은 `--phase full`이 준비된 상태를 전제한다.
 - 코드 리뷰, 정확성 리뷰: `gstack-review`
 - 완료 직전 검증: `verification-before-completion`
 - 세션 종료, handoff, 작업 재개 준비: `checkpoint`
@@ -48,5 +51,6 @@
 - `agents/verification.md`: 완료 주장 전 검증, 사용자 영향 변경 검증, shipping 전 확인
 - `agents/safety.md`: isolation 우선순위, destructive command 규칙, 기존 변경 충돌 처리
 - `agents/tool-contract.md`: 이 repo가 기대하는 gstack/superpowers 호환 계약과 drift trigger
+- `README.md`: bootstrap phase(`core`/`full`)와 최신 compatible 설치 운영 절차
 - `docs/operations/routing-dry-run.md`: 실제 요청 예시로 첫 스킬과 첫 운영 단계를 검산하는 운영 샘플
 - `docs/operations/session-runbook.md`: 이 repo에서 세션 시작, 구현 시작, 종료, 재개를 정렬하는 운영 런북

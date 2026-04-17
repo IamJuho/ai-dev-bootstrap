@@ -33,6 +33,8 @@ load_agent_stack_policy() {
   : "${SUPERPOWERS_TRACK_MODE:?missing SUPERPOWERS_TRACK_MODE}"
   : "${SUPPORTED_HOSTS:?missing SUPPORTED_HOSTS}"
   : "${SUPPORTED_PLATFORMS:?missing SUPPORTED_PLATFORMS}"
+  : "${SUPPORTED_PHASES:?missing SUPPORTED_PHASES}"
+  : "${DEFAULT_BOOTSTRAP_PHASE:?missing DEFAULT_BOOTSTRAP_PHASE}"
   : "${REQUIRED_GSTACK_PREFIX:?missing REQUIRED_GSTACK_PREFIX}"
   : "${REQUIRED_CODEX_FEATURE_MULTI_AGENT:?missing REQUIRED_CODEX_FEATURE_MULTI_AGENT}"
   : "${CLAUDE_SUPERPOWERS_MODE:?missing CLAUDE_SUPERPOWERS_MODE}"
@@ -77,6 +79,13 @@ ensure_supported_host() {
 
   # shellcheck disable=SC2086
   value_in_word_list "$host" $SUPPORTED_HOSTS || die "unsupported host: $host (supported: $SUPPORTED_HOSTS)"
+}
+
+ensure_supported_phase() {
+  local phase="$1"
+
+  # shellcheck disable=SC2086
+  value_in_word_list "$phase" $SUPPORTED_PHASES || die "unsupported phase: $phase (supported: $SUPPORTED_PHASES)"
 }
 
 ensure_command() {
@@ -250,7 +259,7 @@ safe_remove_dir() {
 validate_policy_contract() {
   local skill=""
 
-  for skill in "${REQUIRED_GSTACK_SKILLS[@]}"; do
+  for skill in "${REQUIRED_GSTACK_SKILLS_FULL[@]}"; do
     case "$skill" in
       "$REQUIRED_GSTACK_PREFIX"*) ;;
       *)
@@ -276,13 +285,66 @@ list_missing_skills() {
   return "$missing"
 }
 
+phase_requires_browse_binary() {
+  local phase="$1"
+
+  case "$phase" in
+    full) return 0 ;;
+    core) return 1 ;;
+    *)
+      die "unsupported phase for browse requirement: $phase"
+      ;;
+  esac
+}
+
+phase_excludes_gstack_skill() {
+  local phase="$1"
+  local skill_name="$2"
+  local excluded_skill=""
+
+  case "$phase" in
+    full)
+      return 1
+      ;;
+    core)
+      for excluded_skill in "${CORE_EXCLUDED_GSTACK_SKILLS[@]}"; do
+        [ "$excluded_skill" = "$skill_name" ] && return 0
+      done
+      return 1
+      ;;
+    *)
+      die "unsupported phase for excluded skill lookup: $phase"
+      ;;
+  esac
+}
+
+list_missing_phase_gstack_skills() {
+  local skills_root="$1"
+  local phase="$2"
+
+  case "$phase" in
+    core)
+      list_missing_skills "$skills_root" "${REQUIRED_GSTACK_SKILLS_CORE[@]}"
+      ;;
+    full)
+      list_missing_skills "$skills_root" "${REQUIRED_GSTACK_SKILLS_FULL[@]}"
+      ;;
+    *)
+      die "unsupported phase for gstack skill listing: $phase"
+      ;;
+  esac
+}
+
 gstack_install_is_valid() {
   local skills_root="$1"
+  local phase="${2:-$DEFAULT_BOOTSTRAP_PHASE}"
 
   [ -d "$skills_root/gstack/.git" ] || return 1
-  [ -x "$skills_root/gstack/browse/dist/browse" ] || return 1
+  if phase_requires_browse_binary "$phase"; then
+    [ -x "$skills_root/gstack/browse/dist/browse" ] || return 1
+  fi
 
-  list_missing_skills "$skills_root" "${REQUIRED_GSTACK_SKILLS[@]}" >/dev/null 2>&1
+  list_missing_phase_gstack_skills "$skills_root" "$phase" >/dev/null 2>&1
 }
 
 codex_superpowers_install_is_valid() {
