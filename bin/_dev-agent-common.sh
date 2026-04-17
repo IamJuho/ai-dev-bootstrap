@@ -5,7 +5,7 @@ set -euo pipefail
 DEV_AGENT_SCRIPT_DIR="$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEV_AGENT_REPO_ROOT="$(CDPATH= cd -- "$DEV_AGENT_SCRIPT_DIR/.." && pwd)"
 DEV_AGENT_HOME="${DEV_AGENT_HOME:-$HOME}"
-DEV_AGENT_LOCK_FILE="$DEV_AGENT_REPO_ROOT/agent-stack.lock"
+DEV_AGENT_POLICY_FILE="$DEV_AGENT_REPO_ROOT/agent-stack.policy.sh"
 
 log() {
   printf '%s\n' "$*"
@@ -20,37 +20,63 @@ die() {
   exit 1
 }
 
-load_agent_stack_lock() {
-  [ -f "$DEV_AGENT_LOCK_FILE" ] || die "lock file not found: $DEV_AGENT_LOCK_FILE"
+load_agent_stack_policy() {
+  [ -f "$DEV_AGENT_POLICY_FILE" ] || die "policy file not found: $DEV_AGENT_POLICY_FILE"
 
   # shellcheck disable=SC1090
-  . "$DEV_AGENT_LOCK_FILE"
+  . "$DEV_AGENT_POLICY_FILE"
 
-  : "${AGENT_STACK_VERSION:?missing AGENT_STACK_VERSION}"
+  : "${POLICY_VERSION:?missing POLICY_VERSION}"
   : "${GSTACK_REPO:?missing GSTACK_REPO}"
-  : "${GSTACK_REF:?missing GSTACK_REF}"
   : "${SUPERPOWERS_REPO:?missing SUPERPOWERS_REPO}"
-  : "${SUPERPOWERS_REF:?missing SUPERPOWERS_REF}"
+  : "${GSTACK_TRACK_MODE:?missing GSTACK_TRACK_MODE}"
+  : "${SUPERPOWERS_TRACK_MODE:?missing SUPERPOWERS_TRACK_MODE}"
+  : "${SUPPORTED_HOSTS:?missing SUPPORTED_HOSTS}"
+  : "${SUPPORTED_PLATFORMS:?missing SUPPORTED_PLATFORMS}"
+  : "${REQUIRED_GSTACK_PREFIX:?missing REQUIRED_GSTACK_PREFIX}"
+  : "${REQUIRED_CODEX_FEATURE_MULTI_AGENT:?missing REQUIRED_CODEX_FEATURE_MULTI_AGENT}"
+  : "${CLAUDE_SUPERPOWERS_MODE:?missing CLAUDE_SUPERPOWERS_MODE}"
+  : "${CODEX_SUPERPOWERS_MODE:?missing CODEX_SUPERPOWERS_MODE}"
 
   GSTACK_REPO="${BOOTSTRAP_GSTACK_REPO:-$GSTACK_REPO}"
-  GSTACK_REF="${BOOTSTRAP_GSTACK_REF:-$GSTACK_REF}"
   SUPERPOWERS_REPO="${BOOTSTRAP_SUPERPOWERS_REPO:-$SUPERPOWERS_REPO}"
-  SUPERPOWERS_REF="${BOOTSTRAP_SUPERPOWERS_REF:-$SUPERPOWERS_REF}"
+
+  validate_policy_contract
 }
 
 current_platform() {
   uname -s
 }
 
+value_in_word_list() {
+  local needle="$1"
+  shift
+  local item=""
+
+  for item in "$@"; do
+    [ "$item" = "$needle" ] && return 0
+  done
+
+  return 1
+}
+
 platform_is_supported() {
-  case "$(current_platform)" in
-    Darwin|Linux) return 0 ;;
-    *) return 1 ;;
-  esac
+  local platform=""
+
+  platform="$(current_platform)"
+  # shellcheck disable=SC2086
+  value_in_word_list "$platform" $SUPPORTED_PLATFORMS
 }
 
 ensure_supported_platform() {
-  platform_is_supported || die "unsupported platform: $(current_platform) (supported: macOS, Linux)"
+  platform_is_supported || die "unsupported platform: $(current_platform) (supported: $SUPPORTED_PLATFORMS)"
+}
+
+ensure_supported_host() {
+  local host="$1"
+
+  # shellcheck disable=SC2086
+  value_in_word_list "$host" $SUPPORTED_HOSTS || die "unsupported host: $host (supported: $SUPPORTED_HOSTS)"
 }
 
 ensure_command() {
@@ -75,36 +101,26 @@ git_head() {
   git -C "$1" rev-parse HEAD
 }
 
-git_clone_or_update() {
+git_remote_default_branch() {
   local repo="$1"
-  local ref="$2"
-  local target="$3"
-  local remote_url=""
+  local ref=""
 
-  if [ -e "$target" ] && [ ! -d "$target" ]; then
-    die "target exists and is not a directory: $target"
-  fi
+  ref="$(git ls-remote --symref "$repo" HEAD 2>/dev/null | awk '/^ref:/ {print $2; exit}')"
+  [ -n "$ref" ] || die "failed to resolve default branch for $repo"
 
-  if [ -d "$target/.git" ]; then
-    remote_url="$(git -C "$target" remote get-url origin 2>/dev/null || true)"
-    if [ -n "$remote_url" ] && [ "$remote_url" != "$repo" ]; then
-      warn "updating origin for $target to $repo"
-      git -C "$target" remote set-url origin "$repo"
-    fi
-    git -C "$target" fetch --tags origin
-  else
-    if [ -d "$target" ] && find "$target" -mindepth 1 -print -quit | grep -q .; then
-      die "target already exists and is not an empty git checkout: $target"
-    fi
-    mkdir -p "$(dirname "$target")"
-    git clone "$repo" "$target"
-  fi
+  printf '%s\n' "${ref#refs/heads/}"
+}
 
-  git -C "$target" checkout "$ref"
+git_clone_latest_default_branch() {
+  local repo="$1"
+  local target="$2"
+  local branch=""
 
-  if [ "$(git_head "$target")" != "$ref" ]; then
-    die "failed to pin $target to $ref"
-  fi
+  [ ! -e "$target" ] || die "target already exists: $target"
+
+  branch="$(git_remote_default_branch "$repo")"
+  mkdir -p "$(dirname "$target")"
+  git clone --depth 1 --single-branch --branch "$branch" "$repo" "$target"
 }
 
 ensure_symlink_dir() {
@@ -220,6 +236,69 @@ EOF
   ' "$config_file" > "$tmp_file"
 
   mv "$tmp_file" "$config_file"
+}
+
+safe_remove_dir() {
+  local target="$1"
+
+  [ -n "$target" ] || return 0
+  [ -e "$target" ] || return 0
+
+  rm -rf "$target"
+}
+
+validate_policy_contract() {
+  local skill=""
+
+  for skill in "${REQUIRED_GSTACK_SKILLS[@]}"; do
+    case "$skill" in
+      "$REQUIRED_GSTACK_PREFIX"*) ;;
+      *)
+        die "gstack skill does not match required prefix '$REQUIRED_GSTACK_PREFIX': $skill"
+        ;;
+    esac
+  done
+}
+
+list_missing_skills() {
+  local skills_root="$1"
+  shift
+  local skill=""
+  local missing=0
+
+  for skill in "$@"; do
+    if [ ! -f "$skills_root/$skill/SKILL.md" ]; then
+      printf '%s\n' "$skill"
+      missing=1
+    fi
+  done
+
+  return "$missing"
+}
+
+gstack_install_is_valid() {
+  local skills_root="$1"
+
+  [ -d "$skills_root/gstack/.git" ] || return 1
+  [ -x "$skills_root/gstack/browse/dist/browse" ] || return 1
+
+  list_missing_skills "$skills_root" "${REQUIRED_GSTACK_SKILLS[@]}" >/dev/null 2>&1
+}
+
+codex_superpowers_install_is_valid() {
+  local repo_dir="$1"
+  local skills_link="$2"
+  local config_file="$3"
+
+  [ -d "$repo_dir/.git" ] || return 1
+  path_dir_resolves_to "$skills_link" "$repo_dir/skills" || return 1
+  list_missing_skills "$repo_dir/skills" "${REQUIRED_SUPERPOWERS_SKILLS[@]}" >/dev/null 2>&1 || return 1
+
+  if [ "$REQUIRED_CODEX_FEATURE_MULTI_AGENT" = "true" ]; then
+    config_has_multi_agent_true "$config_file" || return 1
+  fi
+
+  return 0
 }
 
 print_claude_superpowers_manual_steps() {

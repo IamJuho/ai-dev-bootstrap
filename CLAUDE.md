@@ -12,4 +12,6 @@ Claude 세션에서는 다음 순서만 지키면 된다.
 
 이 파일은 얇은 진입 문서만 제공한다. 실제 라우팅 규칙과 작업 기준은 `AGENTS.md`와 `agents/*.md`를 따른다.
 
+tool compatibility의 canonical source는 `agent-stack.policy.sh`와 `agents/tool-contract.md`다.
+
 새 팀원이 이 저장소를 처음 받았다면 bootstrap 절차는 `README.md`와 `bin/setup-dev-agents`, `bin/check-dev-agents`를 따른다.

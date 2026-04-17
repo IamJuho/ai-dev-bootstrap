@@ -41,11 +41,6 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-case "$HOST" in
-  auto|codex|claude) ;;
-  *) die "unsupported host: $HOST" ;;
-esac
-
 OVERALL_EXIT=0
 
 mark_ok() {
@@ -66,19 +61,16 @@ mark_fail() {
 
 check_repo_local_gstack() {
   local agent_name="$1"
-  local checkout_dir="$2"
-  local sibling_skill="$3"
+  local skills_root="$2"
+  local checkout_dir="$skills_root/gstack"
+  local missing_skill=""
 
   if [ ! -d "$checkout_dir/.git" ]; then
     mark_fail "$agent_name gstack checkout missing: $checkout_dir"
     return
   fi
 
-  if [ "$(git_head "$checkout_dir")" != "$GSTACK_REF" ]; then
-    mark_fail "$agent_name gstack ref mismatch: expected $GSTACK_REF"
-  else
-    mark_ok "$agent_name gstack ref pinned to $GSTACK_REF"
-  fi
+  mark_ok "$agent_name gstack checkout exists"
 
   if [ -x "$checkout_dir/browse/dist/browse" ]; then
     mark_ok "$agent_name gstack browse binary is ready"
@@ -86,10 +78,15 @@ check_repo_local_gstack() {
     mark_fail "$agent_name gstack browse binary is missing: $checkout_dir/browse/dist/browse"
   fi
 
-  if [ -f "$sibling_skill/SKILL.md" ]; then
-    mark_ok "$agent_name skill entry exists: $sibling_skill"
-  else
-    mark_fail "$agent_name skill entry missing: $sibling_skill/SKILL.md"
+  while IFS= read -r missing_skill; do
+    [ -n "$missing_skill" ] || continue
+    mark_fail "$agent_name required gstack skill missing: $skills_root/$missing_skill/SKILL.md"
+  done <<EOF
+$(list_missing_skills "$skills_root" "${REQUIRED_GSTACK_SKILLS[@]}" || true)
+EOF
+
+  if list_missing_skills "$skills_root" "${REQUIRED_GSTACK_SKILLS[@]}" >/dev/null 2>&1; then
+    mark_ok "$agent_name required gstack skills satisfy repo policy"
   fi
 }
 
@@ -97,17 +94,14 @@ check_codex_superpowers() {
   local repo_dir="$DEV_AGENT_HOME/.codex/superpowers"
   local skills_link="$DEV_AGENT_HOME/.agents/skills/superpowers"
   local config_file="$DEV_AGENT_HOME/.codex/config.toml"
+  local missing_skill=""
 
   if [ ! -d "$repo_dir/.git" ]; then
     mark_fail "Codex superpowers checkout missing: $repo_dir"
     return
   fi
 
-  if [ "$(git_head "$repo_dir")" != "$SUPERPOWERS_REF" ]; then
-    mark_fail "Codex superpowers ref mismatch: expected $SUPERPOWERS_REF"
-  else
-    mark_ok "Codex superpowers ref pinned to $SUPERPOWERS_REF"
-  fi
+  mark_ok "Codex superpowers checkout exists"
 
   if path_dir_resolves_to "$skills_link" "$repo_dir/skills"; then
     mark_ok "Codex superpowers symlink is connected"
@@ -120,9 +114,21 @@ check_codex_superpowers() {
   else
     mark_fail "Codex config is missing multi_agent = true: $config_file"
   fi
+
+  while IFS= read -r missing_skill; do
+    [ -n "$missing_skill" ] || continue
+    mark_fail "Codex required superpowers skill missing: $repo_dir/skills/$missing_skill/SKILL.md"
+  done <<EOF
+$(list_missing_skills "$repo_dir/skills" "${REQUIRED_SUPERPOWERS_SKILLS[@]}" || true)
+EOF
+
+  if list_missing_skills "$repo_dir/skills" "${REQUIRED_SUPERPOWERS_SKILLS[@]}" >/dev/null 2>&1; then
+    mark_ok "Codex required superpowers skills satisfy repo policy"
+  fi
 }
 
-load_agent_stack_lock
+load_agent_stack_policy
+ensure_supported_host "$HOST"
 
 if ! platform_is_supported; then
   mark_fail "unsupported platform: $(current_platform)"
@@ -130,12 +136,12 @@ if ! platform_is_supported; then
 fi
 
 printf 'Checking host=%s\n' "$HOST"
+printf 'Policy file: %s\n' "$DEV_AGENT_POLICY_FILE"
 
 if host_includes_codex "$HOST"; then
   check_repo_local_gstack \
     "Codex" \
-    "$DEV_AGENT_REPO_ROOT/.agents/skills/gstack" \
-    "$DEV_AGENT_REPO_ROOT/.agents/skills/gstack-review"
+    "$DEV_AGENT_REPO_ROOT/.agents/skills"
 
   if command -v codex >/dev/null 2>&1; then
     mark_ok "codex is available on PATH"
@@ -153,8 +159,7 @@ fi
 if host_includes_claude "$HOST"; then
   check_repo_local_gstack \
     "Claude" \
-    "$DEV_AGENT_REPO_ROOT/.claude/skills/gstack" \
-    "$DEV_AGENT_REPO_ROOT/.claude/skills/gstack-review"
+    "$DEV_AGENT_REPO_ROOT/.claude/skills"
 
   if command -v claude >/dev/null 2>&1; then
     mark_ok "claude is available on PATH"
