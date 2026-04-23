@@ -78,6 +78,7 @@ check_repo_local_gstack() {
   local skills_root="$2"
   local phase="$3"
   local checkout_dir="$skills_root/gstack"
+  local generated_skills_root="$checkout_dir/.agents/skills"
   local missing_skill=""
 
   if [ ! -d "$checkout_dir/.git" ]; then
@@ -86,6 +87,12 @@ check_repo_local_gstack() {
   fi
 
   mark_ok "$agent_name gstack checkout exists"
+
+  if [ -d "$generated_skills_root" ]; then
+    mark_ok "$agent_name gstack skills are inside repo-local checkout"
+  else
+    mark_fail "$agent_name gstack generated skills missing: $generated_skills_root"
+  fi
 
   if phase_requires_browse_binary "$phase"; then
     if [ -x "$checkout_dir/browse/dist/browse" ]; then
@@ -99,7 +106,7 @@ check_repo_local_gstack() {
 
   while IFS= read -r missing_skill; do
     [ -n "$missing_skill" ] || continue
-    mark_fail "$agent_name required gstack skill missing: $skills_root/$missing_skill/SKILL.md"
+    mark_fail "$agent_name required gstack skill missing: $generated_skills_root/$missing_skill/SKILL.md"
   done <<EOF
 $(list_missing_phase_gstack_skills "$skills_root" "$phase" || true)
 EOF

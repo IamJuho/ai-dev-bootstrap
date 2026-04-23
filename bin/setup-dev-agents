@@ -76,26 +76,27 @@ claude_link_name_for_skill_dir() {
   fi
 }
 
-cleanup_phase_excluded_codex_links() {
+cleanup_external_codex_gstack_links() {
   local checkout_dir="$1"
   local skills_root="$2"
-  local phase="$3"
-  local agents_dir="$checkout_dir/.agents/skills"
-  local skill_dir=""
-  local skill_name=""
   local target=""
+  local link_dest=""
 
-  [ -d "$agents_dir" ] || return 0
+  for target in "$skills_root"/gstack-*; do
+    [ -e "$target" ] || [ -L "$target" ] || continue
 
-  for skill_dir in "$agents_dir"/gstack*/; do
-    [ -d "$skill_dir" ] || continue
-    [ -f "$skill_dir/SKILL.md" ] || continue
-    skill_name="$(basename "$skill_dir")"
-    [ "$skill_name" = "gstack" ] && continue
-    phase_excludes_gstack_skill "$phase" "$skill_name" || continue
-    target="$skills_root/$skill_name"
-    if [ -L "$target" ] && path_dir_resolves_to "$target" "$skill_dir"; then
+    if [ -L "$target" ]; then
       rm -f "$target"
+      continue
+    fi
+
+    if [ -d "$target" ] && [ -L "$target/SKILL.md" ]; then
+      link_dest="$(readlink "$target/SKILL.md" 2>/dev/null || true)"
+      case "$link_dest" in
+        "$checkout_dir"/*)
+          rm -rf "$target"
+          ;;
+      esac
     fi
   done
 }
@@ -103,33 +104,13 @@ cleanup_phase_excluded_codex_links() {
 link_phase_codex_skills() {
   local checkout_dir="$1"
   local skills_root="$2"
-  local phase="$3"
+  local _phase="$3"
   local agents_dir="$checkout_dir/.agents/skills"
-  local skill_dir=""
-  local skill_name=""
-  local target=""
 
   [ -d "$agents_dir" ] || die "generated codex skills are missing: $agents_dir"
 
   mkdir -p "$skills_root"
-  cleanup_phase_excluded_codex_links "$checkout_dir" "$skills_root" "$phase"
-
-  for skill_dir in "$agents_dir"/gstack*/; do
-    [ -d "$skill_dir" ] || continue
-    [ -f "$skill_dir/SKILL.md" ] || continue
-    skill_name="$(basename "$skill_dir")"
-    [ "$skill_name" = "gstack" ] && continue
-
-    if phase_excludes_gstack_skill "$phase" "$skill_name"; then
-      continue
-    fi
-
-    target="$skills_root/$skill_name"
-    if [ -e "$target" ] && [ ! -L "$target" ]; then
-      die "refusing to replace non-symlink Codex skill path: $target"
-    fi
-    ln -snf "$skill_dir" "$target"
-  done
+  cleanup_external_codex_gstack_links "$checkout_dir" "$skills_root"
 }
 
 cleanup_phase_excluded_claude_links() {
@@ -223,6 +204,9 @@ run_repo_local_gstack_setup() {
           HOME="$DEV_AGENT_HOME" ./setup --host "$host_flag"
         fi
       )
+      if [ "$host_flag" = "codex" ]; then
+        cleanup_external_codex_gstack_links "$checkout_dir" "$skills_root"
+      fi
       ;;
     core)
       case "$host_flag" in

@@ -31,6 +31,8 @@
 
 - specialist review, browser QA, release workflow는 `gstack-*`를 사용한다.
 - 이 repo는 gstack skill 이름이 항상 `gstack-` prefix를 유지한다고 가정한다.
+- Codex에서 repo-local gstack checkout은 `.agents/skills/gstack`이고, 개별 gstack skill은 `.agents/skills/gstack/.agents/skills/gstack-*` 내부에 모인다.
+- Codex bootstrap은 repo 최상위 `.agents/skills/gstack-*` sibling entry를 남기지 않아야 한다.
 - 이 repo는 phase별 contract를 구분한다.
 - `core`는 planning, review, non-browser specialist 경로를 여는 최소 contract다.
 - `full`은 `core` 위에 browser/QA/visual polish contract를 추가한다.
@@ -48,7 +50,8 @@
 - `gstack-plan-design-review`
 - `gstack-plan-eng-review`
 - `gstack-review`
-- repo-local bootstrap 후 `gstack` checkout 자체와 core-required sibling skill entry가 `.agents/skills/` 또는 `.claude/skills/`에 생성되어야 한다.
+- Codex repo-local bootstrap 후 `gstack` checkout 자체가 `.agents/skills/gstack`에 있고, core-required skill entry가 `.agents/skills/gstack/.agents/skills/` 내부에 생성되어야 한다.
+- Claude repo-local bootstrap 후 `gstack` checkout 자체와 core-required sibling skill entry가 `.claude/skills/`에 생성되어야 한다.
 - `core`에서는 browser-dependent skill entry를 repo-local 노출에서 숨겨도 contract 위반이 아니다.
 
 ### Gstack Full Contract
@@ -59,13 +62,14 @@
 - `gstack-qa`
 - `gstack-qa-only`
 - repo-local `full` bootstrap 후 `.agents/skills/gstack`와 `.claude/skills/gstack` 아래 `browse/dist/browse`가 존재해야 한다.
-- repo-local `full` bootstrap 후 browser-dependent sibling skill entry도 `.agents/skills/` 또는 `.claude/skills/`에 생성되어야 한다.
+- Codex repo-local `full` bootstrap 후 browser-dependent skill entry도 `.agents/skills/gstack/.agents/skills/` 내부에 생성되어야 한다.
+- Claude repo-local `full` bootstrap 후 browser-dependent sibling skill entry도 `.claude/skills/`에 생성되어야 한다.
 
 ## Update Policy
 
 - `./bin/setup-dev-agents`는 upstream default branch 최신 상태를 가져오고, 현재 repo contract를 만족하는지 확인한 뒤에만 설치를 승격한다.
 - 최신 candidate가 contract를 만족하지 못하면 설치를 복구하고 실패로 끝낸다.
-- repo-local `gstack` 업데이트는 skills 루트 전체가 아니라 해당 `gstack` checkout 디렉토리만 교체하고, 필요한 sibling skill entry만 다시 생성한다.
+- repo-local `gstack` 업데이트는 skills 루트 전체가 아니라 해당 `gstack` checkout 디렉토리만 교체하고, Codex에서는 개별 gstack skill을 checkout 내부에 유지한다.
 - `./bin/check-dev-agents`는 현재 로컬 설치가 contract를 만족하는지만 검증한다. 환경을 변경하지 않는다.
 - `core`는 기본 권장 bootstrap phase고, `full`은 browser/QA/visual review가 실제로 필요할 때만 올린다.
 - 따라서 이 repo의 공식 운영 흐름은 아래다.

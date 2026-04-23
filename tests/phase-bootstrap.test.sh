@@ -91,7 +91,7 @@ codex_superpowers_mode_is_repo_local() {
   [ "$CODEX_SUPERPOWERS_MODE" = "repo_local_checkout_with_home_symlinks" ]
 }
 
-make_fake_skill_tree() {
+make_fake_scattered_gstack_tree() {
   local skills_root="$1"
   shift
   local skill=""
@@ -100,6 +100,18 @@ make_fake_skill_tree() {
   for skill in "$@"; do
     mkdir -p "$skills_root/$skill"
     touch "$skills_root/$skill/SKILL.md"
+  done
+}
+
+make_fake_repo_local_gstack_tree() {
+  local skills_root="$1"
+  shift
+  local skill=""
+
+  mkdir -p "$skills_root/gstack/.git" "$skills_root/gstack/.agents/skills"
+  for skill in "$@"; do
+    mkdir -p "$skills_root/gstack/.agents/skills/$skill"
+    touch "$skills_root/gstack/.agents/skills/$skill/SKILL.md"
   done
 }
 
@@ -146,7 +158,7 @@ if array_is_defined REQUIRED_GSTACK_SKILLS_CORE; then
   assert_ok "core contract requires context-save skill" array_contains_value "gstack-context-save" "${REQUIRED_GSTACK_SKILLS_CORE[@]}"
   assert_ok "core contract requires context-restore skill" array_contains_value "gstack-context-restore" "${REQUIRED_GSTACK_SKILLS_CORE[@]}"
   assert_ok "core contract excludes deprecated checkpoint skill" array_lacks_value "gstack-checkpoint" "${REQUIRED_GSTACK_SKILLS_CORE[@]}"
-  make_fake_skill_tree "$core_root" "${REQUIRED_GSTACK_SKILLS_CORE[@]}"
+  make_fake_repo_local_gstack_tree "$core_root" "${REQUIRED_GSTACK_SKILLS_CORE[@]}"
   assert_ok "core install is valid without browse binary" gstack_install_is_valid "$core_root" core
   assert_fail "full install requires browse binary and full skills" gstack_install_is_valid "$core_root" full
 else
@@ -154,11 +166,18 @@ else
 fi
 
 if array_is_defined REQUIRED_GSTACK_SKILLS_FULL; then
-  make_fake_skill_tree "$full_root" "${REQUIRED_GSTACK_SKILLS_FULL[@]}"
+  make_fake_repo_local_gstack_tree "$full_root" "${REQUIRED_GSTACK_SKILLS_FULL[@]}"
   mkdir -p "$full_root/gstack/browse/dist"
   touch "$full_root/gstack/browse/dist/browse"
   chmod +x "$full_root/gstack/browse/dist/browse"
   assert_ok "full install is valid with browse binary and full skills" gstack_install_is_valid "$full_root" full
+
+  scattered_root="$tmpdir/scattered"
+  make_fake_scattered_gstack_tree "$scattered_root" "${REQUIRED_GSTACK_SKILLS_FULL[@]}"
+  mkdir -p "$scattered_root/gstack/browse/dist"
+  touch "$scattered_root/gstack/browse/dist/browse"
+  chmod +x "$scattered_root/gstack/browse/dist/browse"
+  assert_fail "gstack install rejects scattered top-level skill links" gstack_install_is_valid "$scattered_root" full
 else
   record_failure "full phase skill contract is defined"
 fi

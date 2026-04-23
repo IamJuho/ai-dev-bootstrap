@@ -285,6 +285,12 @@ list_missing_skills() {
   return "$missing"
 }
 
+gstack_generated_skills_root() {
+  local skills_root="$1"
+
+  printf '%s\n' "$skills_root/gstack/.agents/skills"
+}
+
 phase_requires_browse_binary() {
   local phase="$1"
 
@@ -321,13 +327,16 @@ phase_excludes_gstack_skill() {
 list_missing_phase_gstack_skills() {
   local skills_root="$1"
   local phase="$2"
+  local generated_skills_root=""
+
+  generated_skills_root="$(gstack_generated_skills_root "$skills_root")"
 
   case "$phase" in
     core)
-      list_missing_skills "$skills_root" "${REQUIRED_GSTACK_SKILLS_CORE[@]}"
+      list_missing_skills "$generated_skills_root" "${REQUIRED_GSTACK_SKILLS_CORE[@]}"
       ;;
     full)
-      list_missing_skills "$skills_root" "${REQUIRED_GSTACK_SKILLS_FULL[@]}"
+      list_missing_skills "$generated_skills_root" "${REQUIRED_GSTACK_SKILLS_FULL[@]}"
       ;;
     *)
       die "unsupported phase for gstack skill listing: $phase"
@@ -338,8 +347,12 @@ list_missing_phase_gstack_skills() {
 gstack_install_is_valid() {
   local skills_root="$1"
   local phase="${2:-$DEFAULT_BOOTSTRAP_PHASE}"
+  local generated_skills_root=""
+
+  generated_skills_root="$(gstack_generated_skills_root "$skills_root")"
 
   [ -d "$skills_root/gstack/.git" ] || return 1
+  [ -d "$generated_skills_root" ] || return 1
   if phase_requires_browse_binary "$phase"; then
     [ -x "$skills_root/gstack/browse/dist/browse" ] || return 1
   fi

@@ -85,6 +85,7 @@ Claude용 repo-local `gstack`는 자동 준비된다. `superpowers`는 Claude pl
 - `bin/setup-dev-agents`: 현재 정책에 맞게 agent stack 준비
 - `bin/check-dev-agents`: 현재 설치 상태 검증
 - `.agents/skills/gstack`, `.agents/skills/superpowers`: bootstrap이 만드는 repo-local agent checkout
+- gstack 개별 skill은 `.agents/skills/gstack/.agents/skills/gstack-*` 아래에 모인다.
 
 ## Notes
 
@@ -92,6 +93,7 @@ Claude용 repo-local `gstack`는 자동 준비된다. `superpowers`는 Claude pl
 - 이 repo는 exact version pin 대신 최신 compatible upstream을 따른다.
 - bootstrap 산출물인 `.agents/`, `.claude/`, `.worktrees/`는 git에 남지 않도록 ignore된다.
 - Codex 호환을 위해 `~/.codex/superpowers`와 `~/.agents/skills/superpowers`는 repo-local `.agents/skills/superpowers`로 연결된다.
+- Codex gstack skill은 repo 최상위 `.agents/skills/gstack-*`로 흩어지지 않는다.
 - 상세 계약은 `agents/tool-contract.md`, 운영 예시는 `docs/operations/*`를 본다.
 
 ## License
