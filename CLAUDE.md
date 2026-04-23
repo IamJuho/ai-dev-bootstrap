@@ -17,3 +17,5 @@ Claude 세션에서는 다음 순서만 지키면 된다.
 tool compatibility의 canonical source는 `agent-stack.policy.sh`와 `agents/tool-contract.md`다.
 
 새 팀원이 이 저장소를 처음 받았다면 bootstrap 절차는 `README.md`와 `bin/setup-dev-agents`, `bin/check-dev-agents`를 따른다.
+
+외부 AI agent가 repo URL을 받아 진행 중인 target repo에 이 bootstrap을 설치해야 한다면 `docs/operations/ai-agent-install.md`를 따른다.
