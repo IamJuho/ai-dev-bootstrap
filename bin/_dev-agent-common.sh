@@ -254,7 +254,7 @@ remove_link_dir() {
     cmd_cmd="$(command -v cmd.exe 2>/dev/null || command -v cmd 2>/dev/null || true)"
     [ -n "$cmd_cmd" ] || die "cmd.exe is required to remove Windows junction: $path"
     path_win="$(windows_path "$path")"
-    "$cmd_cmd" /d /c rmdir "$path_win" >/dev/null || die "failed to remove Windows junction: $path"
+    MSYS2_ARG_CONV_EXCL='*' "$cmd_cmd" /d /c rmdir "$path_win" >/dev/null || die "failed to remove Windows junction: $path"
     return 0
   fi
 
@@ -275,7 +275,7 @@ create_windows_junction_dir() {
 
   src_win="$(windows_path "$src")"
   dst_win="$(windows_path "$dst")"
-  "$cmd_cmd" /d /c mklink /J "$dst_win" "$src_win" >/dev/null || die "failed to create Windows junction: $dst -> $src"
+  MSYS2_ARG_CONV_EXCL='*' "$cmd_cmd" /d /c mklink /J "$dst_win" "$src_win" >/dev/null || die "failed to create Windows junction: $dst -> $src"
 }
 
 ensure_symlink_dir() {
