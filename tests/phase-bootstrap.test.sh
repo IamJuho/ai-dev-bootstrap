@@ -254,9 +254,8 @@ fi
 if array_is_defined REQUIRED_SUPERPOWERS_SKILLS; then
   make_fake_superpowers_repo "$superpowers_root" "${REQUIRED_SUPERPOWERS_SKILLS[@]}"
   make_fake_codex_config "$codex_config"
-  mkdir -p "$(dirname "$codex_superpowers_link")" "$(dirname "$codex_skills_link")"
-  ln -s "$superpowers_root" "$codex_superpowers_link"
-  ln -s "$superpowers_root/skills" "$codex_skills_link"
+  ensure_symlink_dir "$superpowers_root" "$codex_superpowers_link"
+  ensure_symlink_dir "$superpowers_root/skills" "$codex_skills_link"
   assert_ok "codex superpowers install is valid with repo-local checkout and home symlinks" codex_superpowers_install_is_valid "$superpowers_root" "$codex_superpowers_link" "$codex_skills_link" "$codex_config"
 else
   record_failure "superpowers skill contract is defined"

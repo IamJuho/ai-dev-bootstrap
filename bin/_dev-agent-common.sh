@@ -205,7 +205,10 @@ windows_reparse_point_target() {
 }
 
 normalize_windows_path_for_compare() {
-  printf '%s\n' "$1" | tr '\\' '/' | sed 's#/*$##' | tr '[:upper:]' '[:lower:]'
+  printf '%s\n' "$1" |
+    tr '\\' '/' |
+    sed 's#^/??/##; s#^//[?]/##; s#/*$##' |
+    tr '[:upper:]' '[:lower:]'
 }
 
 windows_paths_match() {
@@ -468,7 +471,7 @@ gstack_browse_binary_path() {
   local candidate=""
 
   for candidate in "$checkout_dir/browse/dist/browse" "$checkout_dir/browse/dist/browse.exe"; do
-    if [ -x "$candidate" ]; then
+    if [ -f "$candidate" ] && { [ -x "$candidate" ] || platform_is_windows; }; then
       printf '%s\n' "$candidate"
       return 0
     fi
