@@ -184,15 +184,26 @@ windows_reparse_point_exists() {
 windows_reparse_point_target() {
   local path="$1"
   local fsutil_cmd=""
+  local powershell_cmd=""
   local path_win=""
+  local target=""
 
   platform_is_windows || return 1
   [ -e "$path" ] || [ -L "$path" ] || return 1
 
+  path_win="$(windows_path "$path")"
+  powershell_cmd="$(command -v powershell.exe 2>/dev/null || command -v pwsh.exe 2>/dev/null || true)"
+  if [ -n "$powershell_cmd" ]; then
+    target="$("$powershell_cmd" -NoProfile -Command 'param([string]$Path) $item = Get-Item -LiteralPath $Path -Force; if ($item.Target) { $item.Target } elseif ($item.LinkTarget) { $item.LinkTarget }' "$path_win" 2>/dev/null | tr -d '\r' | sed -n '1p')"
+    if [ -n "$target" ]; then
+      printf '%s\n' "$target"
+      return 0
+    fi
+  fi
+
   fsutil_cmd="$(command -v fsutil.exe 2>/dev/null || command -v fsutil 2>/dev/null || true)"
   [ -n "$fsutil_cmd" ] || return 1
 
-  path_win="$(windows_path "$path")"
   "$fsutil_cmd" reparsepoint query "$path_win" 2>/dev/null | awk '
     /^[[:space:]]*Print Name[[:space:]]*:/ {
       sub(/^[^:]*:[[:space:]]*/, "")
