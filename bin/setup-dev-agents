@@ -13,7 +13,7 @@ Usage: ./bin/setup-dev-agents [--host auto|codex|claude] [--phase core|full]
 
 Options:
   --host    Bootstrap target. Default: auto
-  --phase   Bootstrap phase. Default: full
+  --phase   Bootstrap phase. Default: core
   --help    Show this message
 
 Environment overrides:

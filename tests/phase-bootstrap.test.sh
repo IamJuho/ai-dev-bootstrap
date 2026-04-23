@@ -50,6 +50,18 @@ check_help_mentions_phase() {
   "$ROOT/bin/check-dev-agents" --help | grep -q -- '--phase core|full'
 }
 
+default_bootstrap_phase_is_core() {
+  [ "$DEFAULT_BOOTSTRAP_PHASE" = "core" ]
+}
+
+setup_help_mentions_core_default() {
+  "$ROOT/bin/setup-dev-agents" --help | grep -q -- 'Default: core'
+}
+
+check_help_mentions_core_default() {
+  "$ROOT/bin/check-dev-agents" --help | grep -q -- 'Default: core'
+}
+
 phase_is_supported() {
   local phase="$1"
   type ensure_supported_phase >/dev/null 2>&1 || return 1
@@ -139,6 +151,9 @@ EOF
 
 assert_ok "setup help mentions phase option" setup_help_mentions_phase
 assert_ok "check help mentions phase option" check_help_mentions_phase
+assert_ok "default bootstrap phase is core" default_bootstrap_phase_is_core
+assert_ok "setup help mentions core default" setup_help_mentions_core_default
+assert_ok "check help mentions core default" check_help_mentions_core_default
 assert_ok "core phase is supported" phase_is_supported core
 assert_ok "full phase is supported" phase_is_supported full
 assert_ok "invalid phase is rejected" invalid_phase_is_rejected

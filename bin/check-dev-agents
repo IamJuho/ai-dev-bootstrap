@@ -18,7 +18,7 @@ Exit codes:
 
 Options:
   --host    Bootstrap target to verify. Default: auto
-  --phase   Bootstrap phase to verify. Default: full
+  --phase   Bootstrap phase to verify. Default: core
 EOF
 }
 
