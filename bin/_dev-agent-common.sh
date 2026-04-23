@@ -309,6 +309,17 @@ path_dir_resolves_to() {
 
   [ -d "$expected_path" ] || return 1
 
+  actual_resolved="$(readlink -f -- "$actual_path" 2>/dev/null || true)"
+  expected_resolved="$(readlink -f -- "$expected_path" 2>/dev/null || true)"
+  if [ -n "$actual_resolved" ] && [ -n "$expected_resolved" ]; then
+    if [ "$actual_resolved" = "$expected_resolved" ]; then
+      return 0
+    fi
+    if platform_is_windows && windows_paths_match "$actual_resolved" "$expected_resolved"; then
+      return 0
+    fi
+  fi
+
   if platform_is_windows; then
     actual_windows_target="$(windows_reparse_point_target "$actual_path" 2>/dev/null || true)"
     if [ -n "$actual_windows_target" ]; then
