@@ -169,6 +169,29 @@ multi_agent = true
 EOF
 }
 
+debug_path_resolution() {
+  local actual="$1"
+  local expected="$2"
+  local value=""
+
+  printf 'DEBUG path resolution failed\n' >&2
+  printf 'DEBUG platform raw=%s normalized=%s\n' "$(current_platform_raw)" "$(current_platform)" >&2
+  printf 'DEBUG actual=%s expected=%s\n' "$actual" "$expected" >&2
+  [ -e "$actual" ] && value=true || value=false
+  printf 'DEBUG actual -e=%s ' "$value" >&2
+  [ -d "$actual" ] && value=true || value=false
+  printf -- '-d=%s ' "$value" >&2
+  [ -L "$actual" ] && value=true || value=false
+  printf -- '-L=%s\n' "$value" >&2
+  printf 'DEBUG actual readlink -f=%s\n' "$(readlink -f -- "$actual" 2>&1 || true)" >&2
+  printf 'DEBUG expected readlink -f=%s\n' "$(readlink -f -- "$expected" 2>&1 || true)" >&2
+  if platform_is_windows; then
+    printf 'DEBUG actual windows_path=%s\n' "$(windows_path "$actual" 2>&1 || true)" >&2
+    printf 'DEBUG expected windows_path=%s\n' "$(windows_path "$expected" 2>&1 || true)" >&2
+    printf 'DEBUG actual reparse target=%s\n' "$(windows_reparse_point_target "$actual" 2>&1 || true)" >&2
+  fi
+}
+
 link_helper_resolves_and_removes_without_target_delete() {
   local root="$1"
   local target="$root/target"
@@ -178,7 +201,10 @@ link_helper_resolves_and_removes_without_target_delete() {
   printf 'keep\n' >"$target/marker.txt"
 
   ensure_symlink_dir "$target" "$link" || return 1
-  path_dir_resolves_to "$link" "$target" || return 1
+  if ! path_dir_resolves_to "$link" "$target"; then
+    debug_path_resolution "$link" "$target"
+    return 1
+  fi
   remove_link_dir "$link" || return 1
 
   [ ! -e "$link" ] && [ ! -L "$link" ] && [ -f "$target/marker.txt" ]
@@ -256,7 +282,13 @@ if array_is_defined REQUIRED_SUPERPOWERS_SKILLS; then
   make_fake_codex_config "$codex_config"
   ensure_symlink_dir "$superpowers_root" "$codex_superpowers_link"
   ensure_symlink_dir "$superpowers_root/skills" "$codex_skills_link"
-  assert_ok "codex superpowers install is valid with repo-local checkout and home symlinks" codex_superpowers_install_is_valid "$superpowers_root" "$codex_superpowers_link" "$codex_skills_link" "$codex_config"
+  if codex_superpowers_install_is_valid "$superpowers_root" "$codex_superpowers_link" "$codex_skills_link" "$codex_config"; then
+    record_success "codex superpowers install is valid with repo-local checkout and home symlinks"
+  else
+    debug_path_resolution "$codex_superpowers_link" "$superpowers_root"
+    debug_path_resolution "$codex_skills_link" "$superpowers_root/skills"
+    record_failure "codex superpowers install is valid with repo-local checkout and home symlinks"
+  fi
 else
   record_failure "superpowers skill contract is defined"
 fi
