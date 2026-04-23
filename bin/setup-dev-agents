@@ -313,9 +313,19 @@ setup_codex_superpowers() {
     mv "$repo_dir" "$backup_dir"
   fi
 
-  if [ -e "$repo_link" ] && [ ! -L "$repo_link" ]; then
-    repo_link_backup="${repo_link}.bak.$(date +%s)"
-    mv "$repo_link" "$repo_link_backup"
+  if [ -e "$repo_link" ] || [ -L "$repo_link" ]; then
+    if path_is_link_dir "$repo_link"; then
+      remove_link_dir "$repo_link"
+    else
+      repo_link_backup="${repo_link}.bak.$(date +%s)"
+      mv "$repo_link" "$repo_link_backup"
+    fi
+  fi
+
+  if [ -e "$skills_link" ] || [ -L "$skills_link" ]; then
+    if path_is_link_dir "$skills_link"; then
+      remove_link_dir "$skills_link"
+    fi
   fi
 
   mkdir -p "$(dirname "$repo_dir")"
@@ -356,6 +366,9 @@ ensure_supported_phase "$PHASE"
 ensure_supported_platform
 ensure_command git
 ensure_command bun
+if phase_requires_node "$PHASE"; then
+  ensure_command node
+fi
 
 if host_includes_codex "$HOST"; then
   install_repo_local_gstack "Codex" "codex" "$DEV_AGENT_REPO_ROOT/.agents/skills" "$PHASE"

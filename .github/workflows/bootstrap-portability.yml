@@ -1,0 +1,35 @@
+name: Bootstrap Portability
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  phase-bootstrap:
+    name: Phase bootstrap (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Phase bootstrap tests
+        run: bash tests/phase-bootstrap.test.sh
+
+      - name: Check CLI help
+        run: ./bin/check-dev-agents --help
+
+      - name: Whitespace check
+        run: git diff --check

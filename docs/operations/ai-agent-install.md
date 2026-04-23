@@ -40,6 +40,8 @@ https://github.com/IamJuho/ai-dev-bootstrap
 - 기본 host는 `codex`다.
 - 기본 phase는 `core`다.
 - `full`은 browser, QA, visual review가 실제로 필요할 때만 사용한다.
+- 지원 shell은 macOS/Linux POSIX shell과 Windows 11 Git Bash/MSYS 계열이다.
+- PowerShell native bootstrap은 이 절차의 지원 범위가 아니다.
 - target repo가 git repo가 아니면 설치하지 말고 멈춘다.
 - 기존 파일은 덮어쓰지 않는다. 특히 `AGENTS.md`, `CLAUDE.md`, `README.md`,
   `.gitignore`는 병합 대상이다.
@@ -137,6 +139,7 @@ worktrees/
 ```
 
 browser, QA, visual review가 필요하다는 요구가 있으면 그때만 full로 올린다.
+Windows 11 Git Bash/MSYS 계열에서 `full` phase를 실행할 때는 `node`가 PATH에 있어야 한다.
 
 ```bash
 ./bin/setup-dev-agents --host codex --phase full
@@ -168,6 +171,16 @@ git diff --check
 - phase bootstrap test가 `All phase bootstrap tests passed.`를 출력한다.
 - `git diff --check`가 whitespace error 없이 끝난다.
 - `.agents/`, `.claude/`, `.worktrees/` 산출물이 untracked 변경으로 남지 않는다.
+
+Windows Git Bash/MSYS 계열에서 Codex `full`을 검증한다면 추가로 아래를 확인한다.
+
+```bash
+./bin/setup-dev-agents --host codex --phase full
+./bin/check-dev-agents --host codex --phase full
+.agents/skills/gstack/browse/dist/browse --help
+```
+
+upstream 산출물이 `.exe` 이름으로 만들어진 경우 마지막 명령은 `.agents/skills/gstack/browse/dist/browse.exe --help`로 확인한다.
 
 ## Safety Rules
 
