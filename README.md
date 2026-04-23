@@ -26,6 +26,19 @@ git pull
 Result exit code: 0
 ```
 
+## Install Via AI Agent
+
+Codex, Claude, Omo 같은 AI agent에게 이 repo URL을 주고 진행 중인 git repo에
+설치하게 하려면 `docs/operations/ai-agent-install.md`를 기준으로 진행한다.
+
+기본 요청 예시:
+
+```text
+현재 git repo에 https://github.com/IamJuho/ai-dev-bootstrap 를 설치해줘.
+host는 codex, phase는 core로 시작하고, 기존 AGENTS.md/CLAUDE.md는 덮어쓰지 말고 병합해줘.
+설치 후 check-dev-agents가 0으로 끝나는지 검증해줘.
+```
+
 ## When You Need Browser / QA
 
 `gstack-browse`, `gstack-qa`, `gstack-qa-only`, `gstack-design-review`가 필요할 때만 `full`로 올린다.

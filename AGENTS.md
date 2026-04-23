@@ -52,5 +52,6 @@
 - `agents/safety.md`: isolation 우선순위, destructive command 규칙, 기존 변경 충돌 처리
 - `agents/tool-contract.md`: 이 repo가 기대하는 gstack/superpowers 호환 계약과 drift trigger
 - `README.md`: bootstrap phase(`core`/`full`)와 최신 compatible 설치 운영 절차
+- `docs/operations/ai-agent-install.md`: 외부 AI agent가 repo URL을 받아 target repo에 bootstrap을 설치하는 절차
 - `docs/operations/routing-dry-run.md`: 실제 요청 예시로 첫 스킬과 첫 운영 단계를 검산하는 운영 샘플
 - `docs/operations/session-runbook.md`: 이 repo에서 세션 시작, 구현 시작, 종료, 재개를 정렬하는 운영 런북
