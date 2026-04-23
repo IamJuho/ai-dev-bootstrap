@@ -1,135 +1,18 @@
 # AI Agent Bootstrap
 
-이 저장소는 프로젝트별 AI 개발 라우팅 문서와, 팀원이 `git pull` 직후 현재 프로젝트 정책에 맞는 최신 agent stack으로 정렬할 수 있는 bootstrap 스크립트를 함께 제공한다.
+팀원이 `git pull` 직후 현재 프로젝트 정책에 맞는 AI agent stack을 맞추는 bootstrap repo다.
 
-기준 문서는 다음 두 가지다.
+기본 경로는 **Codex + core phase**다. Claude나 browser/QA 기능은 필요할 때만 추가로 준비한다.
 
-- `AGENTS.md`: Codex 기준 라우터이자 저장소의 단일 기준 문서
-- `CLAUDE.md`: Claude용 얇은 진입 문서. 핵심 규칙은 `AGENTS.md`를 따른다
+## Quick Start
 
-## 목표
+필요한 것:
 
-- 저장소 안에서 공통 라우팅 문서(`AGENTS.md`, `agents/*.md`)를 유지한다.
-- repo-local `gstack`는 최신 upstream 기준으로 자동 준비한다.
-- `superpowers`는 Codex에서는 최신 compatible 상태로 자동 준비하고, Claude에서는 marketplace 설치를 안내한다.
-- 새 팀원이 기존 세션 맥락 없이도 동일한 초기 상태를 빠르게 맞출 수 있게 한다.
-
-## 지원 범위
-
-- OS: macOS, Linux
-
-자동 준비:
-
-- Codex용 repo-local `gstack`
-- Claude용 repo-local `gstack`
-- Codex용 `superpowers` checkout, symlink, `multi_agent = true`
-
-수동 준비:
-
-- Claude용 `superpowers` plugin 설치와 확인
-
-## 빠른 시작
+- `git`
+- `bun`
+- `codex` CLI
 
 저장소 루트에서 실행한다.
-
-```bash
-./bin/setup-dev-agents --host codex --phase core
-./bin/check-dev-agents --host codex --phase core
-```
-
-자주 쓰는 모드:
-
-- `--host codex`: 가장 단순한 기본 권장 경로다.
-- `--host auto`: Codex + Claude 경로를 모두 준비한다. Claude `superpowers`는 수동 단계가 남으므로 정상 동작이어도 종료 코드는 `2`가 될 수 있다.
-- `--host claude`: Claude 기준으로만 준비하고 점검한다.
-- `--phase core`: 최신 compatible 최소 bootstrap이다. planning, review, non-browser specialist 흐름을 먼저 여는 권장 시작점이다.
-- `--phase full`: browser/QA/visual review까지 포함한 전체 bootstrap이다. `gstack-browse`, `gstack-qa`, `gstack-qa-only`, `gstack-design-review`를 실제로 써야 할 때 올린다.
-
-처음 들어온 팀원이나 새 세션에서 bootstrap 상태가 불명확하면 아래 순서를 권장한다.
-
-```bash
-./bin/check-dev-agents --host codex --phase core
-./bin/setup-dev-agents --host codex --phase core
-./bin/check-dev-agents --host codex --phase core
-```
-
-browser/QA/visual polish가 필요해지는 시점에만 `full`로 확장한다.
-
-```bash
-./bin/setup-dev-agents --host codex --phase full
-./bin/check-dev-agents --host codex --phase full
-```
-
-## 필요한 도구
-
-- 공통: `git`, `bun`
-
-선택:
-
-- Codex를 실제로 사용할 경우 `codex`
-- Claude를 실제로 사용할 경우 `claude`
-
-`setup-dev-agents`는 에이전트 바이너리가 없어도 repo-local bootstrap은 가능한 범위까지 진행한다. 다만 해당 에이전트를 실제로 쓰려면 각 CLI가 설치되어 있어야 한다.
-
-## 스크립트가 하는 일
-
-`bin/setup-dev-agents`
-
-- policy 파일(`agent-stack.policy.sh`)을 기준으로 현재 프로젝트가 기대하는 contract를 읽는다.
-- 각 upstream repo의 default branch 최신 상태를 가져와 최신 compatible 설치를 시도한다.
-- `.agents/skills/gstack`
-- `.claude/skills/gstack`
-- `--phase core`에서는 최신 compatible 최소 경로만 만든다.
-- Codex는 `bun install`과 `gen:skill-docs --host codex`만 수행하고, browser 의존 skill entry는 repo-local 노출에서 제외한다.
-- Claude는 prefixed skill entry만 최소로 다시 연결하고, browser 의존 skill entry는 repo-local 노출에서 제외한다.
-- `--phase full`에서는 기존과 동일하게 upstream `./setup`을 호출해 repo-local skill entry를 생성한다.
-- repo-local `gstack` 업데이트는 해당 `gstack` checkout 디렉토리만 교체하고, 같은 skills 루트의 다른 내용은 보존한 채 필요한 sibling skill entry를 다시 생성한다.
-- Codex 경로에서는 `superpowers`를 `~/.codex/superpowers`에 최신 compatible 상태로 맞추고, `~/.agents/skills/superpowers` symlink를 만든다.
-- `~/.codex/config.toml`의 `[features]` 아래에 `multi_agent = true`를 보장한다.
-- Claude용 `superpowers`는 자동 설치하지 않고 marketplace 명령을 출력한다.
-- 업데이트 도중 새 설치가 정책을 만족하지 못하면 이전 정상본으로 복구한다.
-
-`bin/check-dev-agents`
-
-- 현재 로컬 설치가 `agent-stack.policy.sh`의 contract를 만족하는지 확인한다.
-- `--phase core`는 최소 contract만 본다. browser binary나 browser-dependent skill entry는 요구하지 않는다.
-- `--phase full`은 browser binary와 full contract까지 모두 확인한다.
-- ref pin 여부는 확인하지 않는다.
-- Codex `superpowers` symlink와 `multi_agent = true` 상태를 확인한다.
-- Claude `superpowers`는 자동 검증하지 않는다.
-- 수동 확인이 남아 있으면 종료 코드 `2`를 반환한다.
-
-종료 코드:
-
-- `0`: 자동으로 검증 가능한 항목이 모두 준비됨
-- `1`: bootstrap이 깨졌거나 필수 산출물이 누락됨
-- `2`: 수동 단계가 남아 있음
-
-## Claude `superpowers` 수동 단계
-
-Claude에서 `superpowers`는 repo가 아니라 plugin marketplace 설치가 기준이다. 이 저장소는 그 단계만 안내하고, 설치 자체는 자동으로 하지 않는다.
-
-권장 경로:
-
-```text
-/plugin install superpowers@claude-plugins-official
-```
-
-공식 marketplace가 보이지 않으면 fallback:
-
-```text
-/plugin marketplace add obra/superpowers-marketplace
-/plugin install superpowers@superpowers-marketplace
-```
-
-설치 후 Claude를 다시 시작한다.
-
-## 호환 정책
-
-이 저장소는 exact version pin보다 **호환 정책 기반**으로 agent stack을 운영한다.
-기계가 읽는 기준은 `agent-stack.policy.sh`, 사람이 읽는 기준은 `agents/tool-contract.md`다.
-
-공식 운영 흐름:
 
 ```bash
 git pull
@@ -137,10 +20,74 @@ git pull
 ./bin/check-dev-agents --host codex --phase core
 ```
 
-branch를 바꾸거나 프로젝트 문서가 업데이트된 뒤에는 `setup-dev-agents`를 다시 실행해 현재 프로젝트 정책에 맞는 최신 compatible 상태로 재정렬한다.
-browser/QA/visual review가 필요한 branch에서는 같은 흐름으로 `--phase full`을 다시 실행한다.
+성공 기준:
 
-## 참고
+```text
+Result exit code: 0
+```
 
-- `docs/operations/*`는 운영 예시다. 초기 bootstrap 경로의 필수 문서는 아니다.
-- repo-local vendored checkout은 `.gitignore`에 포함되어 있어, bootstrap 실행 후에도 working tree에 bootstrap 산출물이 untracked로 남지 않는다.
+## When You Need Browser / QA
+
+`gstack-browse`, `gstack-qa`, `gstack-qa-only`, `gstack-design-review`가 필요할 때만 `full`로 올린다.
+
+```bash
+./bin/setup-dev-agents --host codex --phase full
+./bin/check-dev-agents --host codex --phase full
+```
+
+## Exit Codes
+
+- `0`: 준비 완료
+- `1`: bootstrap이 깨졌거나 필수 항목이 없음
+- `2`: 수동 단계가 남아 있음
+
+`2`는 항상 실패가 아니다. 특히 Claude는 plugin 설치 확인이 수동이라 `2`가 나올 수 있다.
+
+## Claude Users
+
+Claude용 repo-local `gstack`는 자동 준비된다. `superpowers`는 Claude plugin marketplace에서 직접 설치해야 한다.
+
+```text
+/plugin install superpowers@claude-plugins-official
+```
+
+공식 marketplace가 보이지 않으면:
+
+```text
+/plugin marketplace add obra/superpowers-marketplace
+/plugin install superpowers@superpowers-marketplace
+```
+
+설치 후 Claude를 재시작하고 확인한다.
+
+```bash
+./bin/check-dev-agents --host claude --phase core
+```
+
+## Team Pilot
+
+팀원 파일럿 배포는 `TEAM_PILOT.md`를 따른다.
+
+파일럿 기본값:
+
+- 대상: Codex 사용자
+- OS: macOS 또는 Linux
+- host: `codex`
+- phase: `core`
+- 성공 기준: `check-dev-agents`가 `Result exit code: 0`
+
+## What This Repo Maintains
+
+- `AGENTS.md`: Codex 기준 라우터
+- `CLAUDE.md`: Claude용 얇은 진입 문서
+- `agents/*.md`: 라우팅, 계획, 실행, 검증, 안전 규칙
+- `agent-stack.policy.sh`: 기계가 읽는 호환 정책
+- `bin/setup-dev-agents`: 현재 정책에 맞게 agent stack 준비
+- `bin/check-dev-agents`: 현재 설치 상태 검증
+
+## Notes
+
+- 지원 OS는 macOS와 Linux다.
+- 이 repo는 exact version pin 대신 최신 compatible upstream을 따른다.
+- bootstrap 산출물인 `.agents/`, `.claude/`, `.worktrees/`는 git에 남지 않도록 ignore된다.
+- 상세 계약은 `agents/tool-contract.md`, 운영 예시는 `docs/operations/*`를 본다.
