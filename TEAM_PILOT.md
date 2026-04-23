@@ -79,6 +79,8 @@ browser, QA, visual review가 필요한 팀원만 `full`로 확장한다.
 ./bin/check-dev-agents --host codex --phase full
 ```
 
+Codex bootstrap 후 `gstack`과 `superpowers` checkout은 repo-local `.agents/skills/` 아래에 준비된다. Codex가 기대하는 `~/.codex/superpowers`와 `~/.agents/skills/superpowers`는 이 repo-local checkout으로 연결된다.
+
 Codex와 Claude를 모두 준비하려면 `auto`를 쓸 수 있다.
 
 ```bash

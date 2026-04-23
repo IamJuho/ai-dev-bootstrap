@@ -23,7 +23,7 @@
 - `verification-before-completion`
 - `writing-plans`
 - Codex 환경에서는 `~/.codex/config.toml`의 `[features]` 아래 `multi_agent = true`가 유지되어야 한다.
-- Codex에서는 `~/.codex/superpowers` checkout과 `~/.agents/skills/superpowers` symlink가 연결되어야 한다.
+- Codex에서는 `.agents/skills/superpowers`가 repo-local checkout이고, `~/.codex/superpowers`와 `~/.agents/skills/superpowers`는 이 checkout으로 연결된 symlink여야 한다.
 - 이 repo의 세션 저장/복원 workflow는 현재 `gstack-context-save`와 `gstack-context-restore`로 충족된다고 본다.
 - Claude에서는 `superpowers`를 repo-local clone으로 직접 쓰지 않는다. marketplace/plugin 경로가 canonical이다.
 

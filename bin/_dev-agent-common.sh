@@ -349,10 +349,12 @@ gstack_install_is_valid() {
 
 codex_superpowers_install_is_valid() {
   local repo_dir="$1"
-  local skills_link="$2"
-  local config_file="$3"
+  local repo_link="$2"
+  local skills_link="$3"
+  local config_file="$4"
 
   [ -d "$repo_dir/.git" ] || return 1
+  path_dir_resolves_to "$repo_link" "$repo_dir" || return 1
   path_dir_resolves_to "$skills_link" "$repo_dir/skills" || return 1
   list_missing_skills "$repo_dir/skills" "${REQUIRED_SUPERPOWERS_SKILLS[@]}" >/dev/null 2>&1 || return 1
 

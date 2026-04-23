@@ -110,22 +110,29 @@ EOF
 }
 
 check_codex_superpowers() {
-  local repo_dir="$DEV_AGENT_HOME/.codex/superpowers"
+  local repo_dir="$DEV_AGENT_REPO_ROOT/.agents/skills/superpowers"
+  local repo_link="$DEV_AGENT_HOME/.codex/superpowers"
   local skills_link="$DEV_AGENT_HOME/.agents/skills/superpowers"
   local config_file="$DEV_AGENT_HOME/.codex/config.toml"
   local missing_skill=""
 
   if [ ! -d "$repo_dir/.git" ]; then
-    mark_fail "Codex superpowers checkout missing: $repo_dir"
+    mark_fail "Codex repo-local superpowers checkout missing: $repo_dir"
     return
   fi
 
-  mark_ok "Codex superpowers checkout exists"
+  mark_ok "Codex repo-local superpowers checkout exists"
+
+  if path_dir_resolves_to "$repo_link" "$repo_dir"; then
+    mark_ok "Codex superpowers home checkout symlink is connected"
+  else
+    mark_fail "Codex superpowers home checkout symlink is missing or points elsewhere: $repo_link"
+  fi
 
   if path_dir_resolves_to "$skills_link" "$repo_dir/skills"; then
-    mark_ok "Codex superpowers symlink is connected"
+    mark_ok "Codex superpowers skills symlink is connected"
   else
-    mark_fail "Codex superpowers symlink is missing or points elsewhere: $skills_link"
+    mark_fail "Codex superpowers skills symlink is missing or points elsewhere: $skills_link"
   fi
 
   if config_has_multi_agent_true "$config_file"; then

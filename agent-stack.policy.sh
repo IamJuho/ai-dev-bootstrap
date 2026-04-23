@@ -1,6 +1,6 @@
 # shellcheck shell=sh
 
-POLICY_VERSION="2"
+POLICY_VERSION="3"
 
 GSTACK_REPO="https://github.com/garrytan/gstack.git"
 SUPERPOWERS_REPO="https://github.com/obra/superpowers.git"
@@ -16,7 +16,7 @@ DEFAULT_BOOTSTRAP_PHASE="full"
 REQUIRED_GSTACK_PREFIX="gstack-"
 REQUIRED_CODEX_FEATURE_MULTI_AGENT="true"
 CLAUDE_SUPERPOWERS_MODE="manual_marketplace"
-CODEX_SUPERPOWERS_MODE="global_checkout_with_symlink"
+CODEX_SUPERPOWERS_MODE="repo_local_checkout_with_home_symlinks"
 
 REQUIRED_SUPERPOWERS_SKILLS=(
   "brainstorming"
