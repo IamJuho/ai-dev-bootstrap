@@ -23,7 +23,7 @@
 | 구현 후 UI polish, 시각적 QA | `gstack-design-review` | 필요 시 `gstack-qa` | 불가 |
 | 코드 리뷰, 정확성 리뷰, PR 전 점검 | `gstack-review` | 필요 시 `verification-before-completion` | 불가 |
 | ship, deploy, release 확인 | `verification-before-completion` | `gstack-review`, `gstack-qa`, 이후 ship/deploy flow | 불가 |
-| 세션 종료, handoff, 이후 재개 준비 | `checkpoint` | 다음 세션에서 복원 가능한 상태 저장 | 불가 |
+| 세션 종료, handoff, 이후 재개 준비 | `gstack-context-save` / `gstack-context-restore` | 다음 세션에서 복원 가능한 상태를 저장하고 재개 시 복원 | 불가 |
 | 작은 로컬 수정 | 없음 또는 관련 skill | 바로 수정 후 검증 | 가능 |
 
 ## Fast Path Gate

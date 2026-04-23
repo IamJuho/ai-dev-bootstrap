@@ -51,12 +51,12 @@
 
 ## 세션 종료 또는 Handoff
 
-- 아래 상황이면 `checkpoint`를 기본 경로로 검토한다.
+- 아래 상황이면 `gstack-context-save`를 기본 경로로 검토한다.
 - 오늘 세션을 마무리할 때
 - 다른 세션이나 다른 사람에게 넘길 때
 - 아직 미완료 상태인데 긴 중단이 생길 때
 
-## checkpoint에 꼭 남길 것
+## context save에 꼭 남길 것
 
 - 현재 branch와 worktree 경로
 - 이번 세션에서 잠근 결정
@@ -66,7 +66,7 @@
 
 ## 다음 세션 재개 순서
 
-1. checkpoint가 있으면 먼저 복원한다.
+1. 저장된 context가 있으면 `gstack-context-restore`로 먼저 복원한다.
 2. 현재 branch와 worktree가 의도한 위치인지 확인한다.
 3. 필요한 문서만 다시 읽는다. 전 문서를 매번 다 읽지 않는다.
 4. 남은 작업이 fast path인지, 다시 plan lane으로 올라가야 하는지 재판단한다.
@@ -87,5 +87,5 @@
 - `agents/execution.md`
 - `agents/verification.md`
 - `agents/safety.md`
-- 기본 isolation 수단, fast path 경계, checkpoint 기대치가 바뀌면 이 문서도 즉시 수정한다.
+- 기본 isolation 수단, fast path 경계, context save/restore 기대치가 바뀌면 이 문서도 즉시 수정한다.
 - 수정 뒤에는 운영 문서의 경로, `AGENTS.md`의 참조, 그리고 현재 repo 상태에 대한 설명이 여전히 맞는지 직접 확인한다.

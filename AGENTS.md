@@ -28,7 +28,7 @@
 - 위험이 낮음
 - 사용자 영향이 없음
 - 여러 단계이거나 위험이 있거나 애매하면 라우팅 결정을 짧게 밝히고 관련 문서를 먼저 읽는다.
-- 세션을 종료하거나 다른 세션으로 넘길 때는 `checkpoint`를 기본 경로로 검토한다.
+- 세션을 종료하거나 다른 세션으로 넘길 때는 `gstack-context-save`를 기본 경로로 검토하고, 재개할 때는 `gstack-context-restore`를 우선한다.
 - 첫 스킬과 첫 운영 단계는 다를 수 있다. 예를 들어 승인된 계획 구현의 첫 스킬은 `subagent-driven-development`이고, git repo의 기본 운영 단계는 worktree 준비부터 시작한다.
 
 ## Fast Routing
@@ -41,7 +41,7 @@
 - 구현 후 UI polish: `gstack-design-review`, 단 이 lane은 `--phase full`이 준비된 상태를 전제한다.
 - 코드 리뷰, 정확성 리뷰: `gstack-review`
 - 완료 직전 검증: `verification-before-completion`
-- 세션 종료, handoff, 작업 재개 준비: `checkpoint`
+- 세션 종료, handoff, 작업 재개 준비: `gstack-context-save` / `gstack-context-restore`
 
 ## Lazy-Loaded References
 

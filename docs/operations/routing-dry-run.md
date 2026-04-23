@@ -22,7 +22,7 @@
 | "이미 만든 화면이 좀 AI스럽다. 마감 전에 다듬어줘" | UI polish | `gstack-design-review` | 먼저 `./bin/check-dev-agents --host codex --phase full`로 browser lane을 연 뒤 시각적 증거와 함께 polish 항목을 반영한다 | 구현 후 visual QA는 설계 문서보다 실제 결과물을 봐야 하고, 이 lane은 full bootstrap을 전제한다 |
 | "이 변경셋이 안전한지 리뷰해줘" | 리뷰 | `gstack-review` | 필요한 경우 `verification-before-completion`로 사실 여부를 잠근다 | 리뷰는 정확성, 위험, 누락을 먼저 본다 |
 | "이제 끝난 것 같은데 완료라고 말해도 돼?" | 완료 직전 검증 | `verification-before-completion` | 주장에 대응하는 검증 명령을 바로 실행한다 | 증거 없이 완료를 말하면 라우터 목적이 무너진다 |
-| "오늘은 여기까지 하고 다음 세션에서 이어가자" | 세션 종료 | `checkpoint` | 현재 branch, worktree, 결정 사항, 남은 작업을 저장한다 | handoff 복원성이 없으면 다음 세션에서 맥락 비용이 커진다 |
+| "오늘은 여기까지 하고 다음 세션에서 이어가자" | 세션 종료 | `gstack-context-save` | 현재 branch, worktree, 결정 사항, 남은 작업을 저장한다 | handoff 복원성이 없으면 다음 세션에서 맥락 비용이 커진다 |
 | "문서 한 줄 오탈자만 고쳐줘" | 작은 로컬 수정 | 관련 스킬 없음 또는 현재 컨텍스트 유지 | 현재 작업 공간에서 바로 수정하고 최소 검증만 한다 | 네 가지 fast path 조건을 모두 만족하는 예외다 |
 
 ## Fast Path Sanity Check
@@ -41,7 +41,7 @@
 - `agents/*`의 규칙을 새 운영 문서가 다시 장황하게 복제한다.
 - `gstack-*` 이름에서 prefix를 빼먹는다.
 - 완료 주장 전에 검증 명령이 없다.
-- 세션을 끊는데 `checkpoint`를 전혀 고려하지 않는다.
+- 세션을 끊는데 `gstack-context-save`를 전혀 고려하지 않는다.
 
 ## 유지 원칙
 

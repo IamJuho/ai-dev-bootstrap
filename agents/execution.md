@@ -18,7 +18,7 @@
 - git repo의 기본 경로는 다음 순서다.
 - `using-git-worktrees`
 - `subagent-driven-development`
-- 세션 종료, handoff, 긴 중단 전에는 `checkpoint`
+- 세션 종료, handoff, 긴 중단 전에는 `gstack-context-save`
 - `verification-before-completion`
 - 기능 추가나 버그 수정처럼 동작이 바뀌는 구현은, 실제 코드 변경 전에 `test-driven-development`를 먼저 적용한다.
 - `test-driven-development`는 기본 실행 체인과 경쟁하는 별도 진입점이 아니라, 코드 변경 직전의 구현 규칙이다.
@@ -34,7 +34,7 @@
 - inline execution을 허용한다.
 - 이 경우에도 검증은 생략하지 않는다.
 - fallback이라고 해서 품질 규칙을 낮추지 않는다. 범위와 검증만 더 엄격하게 본다.
-- fallback 경로에서도 세션 전환이 생기면 `checkpoint`를 사용한다.
+- fallback 경로에서도 세션 전환이 생기면 `gstack-context-save`를 사용하고, 다음 세션은 `gstack-context-restore`로 재개한다.
 
 ## Scope Creep Rules
 

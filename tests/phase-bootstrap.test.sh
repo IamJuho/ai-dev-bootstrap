@@ -68,6 +68,25 @@ array_is_defined() {
   declare -p "$name" >/dev/null 2>&1
 }
 
+array_contains_value() {
+  local needle="$1"
+  shift
+  local value=""
+
+  for value in "$@"; do
+    [ "$value" = "$needle" ] && return 0
+  done
+
+  return 1
+}
+
+array_lacks_value() {
+  local needle="$1"
+  shift
+
+  ! array_contains_value "$needle" "$@"
+}
+
 make_fake_skill_tree() {
   local skills_root="$1"
   shift
@@ -93,6 +112,9 @@ core_root="$tmpdir/core"
 full_root="$tmpdir/full"
 
 if array_is_defined REQUIRED_GSTACK_SKILLS_CORE; then
+  assert_ok "core contract requires context-save skill" array_contains_value "gstack-context-save" "${REQUIRED_GSTACK_SKILLS_CORE[@]}"
+  assert_ok "core contract requires context-restore skill" array_contains_value "gstack-context-restore" "${REQUIRED_GSTACK_SKILLS_CORE[@]}"
+  assert_ok "core contract excludes deprecated checkpoint skill" array_lacks_value "gstack-checkpoint" "${REQUIRED_GSTACK_SKILLS_CORE[@]}"
   make_fake_skill_tree "$core_root" "${REQUIRED_GSTACK_SKILLS_CORE[@]}"
   assert_ok "core install is valid without browse binary" gstack_install_is_valid "$core_root" core
   assert_fail "full install requires browse binary and full skills" gstack_install_is_valid "$core_root" full

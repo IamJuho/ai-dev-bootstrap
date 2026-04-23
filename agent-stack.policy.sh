@@ -1,6 +1,6 @@
 # shellcheck shell=sh
 
-POLICY_VERSION="1"
+POLICY_VERSION="2"
 
 GSTACK_REPO="https://github.com/garrytan/gstack.git"
 SUPERPOWERS_REPO="https://github.com/obra/superpowers.git"
@@ -31,7 +31,8 @@ REQUIRED_SUPERPOWERS_SKILLS=(
 
 REQUIRED_GSTACK_SKILLS_CORE=(
   "gstack-careful"
-  "gstack-checkpoint"
+  "gstack-context-save"
+  "gstack-context-restore"
   "gstack-freeze"
   "gstack-guard"
   "gstack-office-hours"

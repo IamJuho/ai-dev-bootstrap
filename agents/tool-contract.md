@@ -24,7 +24,7 @@
 - `writing-plans`
 - Codex 환경에서는 `~/.codex/config.toml`의 `[features]` 아래 `multi_agent = true`가 유지되어야 한다.
 - Codex에서는 `~/.codex/superpowers` checkout과 `~/.agents/skills/superpowers` symlink가 연결되어야 한다.
-- 이 repo의 checkpoint workflow는 현재 `gstack-checkpoint`로 충족된다고 본다.
+- 이 repo의 세션 저장/복원 workflow는 현재 `gstack-context-save`와 `gstack-context-restore`로 충족된다고 본다.
 - Claude에서는 `superpowers`를 repo-local clone으로 직접 쓰지 않는다. marketplace/plugin 경로가 canonical이다.
 
 ## Gstack Contract
@@ -39,7 +39,8 @@
 
 - 이 repo가 `core`에서 직접 기대하는 핵심 skill은 아래다.
 - `gstack-careful`
-- `gstack-checkpoint`
+- `gstack-context-save`
+- `gstack-context-restore`
 - `gstack-freeze`
 - `gstack-guard`
 - `gstack-office-hours`
