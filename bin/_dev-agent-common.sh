@@ -172,7 +172,10 @@ windows_reparse_point_exists() {
   local path_win=""
 
   platform_is_windows || return 1
-  [ -e "$path" ] || [ -L "$path" ] || return 1
+
+  if windows_reparse_point_target "$path" >/dev/null 2>&1; then
+    return 0
+  fi
 
   fsutil_cmd="$(command -v fsutil.exe 2>/dev/null || command -v fsutil 2>/dev/null || true)"
   [ -n "$fsutil_cmd" ] || return 1
@@ -189,7 +192,6 @@ windows_reparse_point_target() {
   local target=""
 
   platform_is_windows || return 1
-  [ -e "$path" ] || [ -L "$path" ] || return 1
 
   path_win="$(windows_path "$path")"
   powershell_cmd="$(command -v powershell.exe 2>/dev/null || command -v pwsh.exe 2>/dev/null || true)"
@@ -305,15 +307,7 @@ path_dir_resolves_to() {
   local actual_windows_target=""
   local expected_windows_path=""
 
-  [ -d "$actual_path" ] || return 1
   [ -d "$expected_path" ] || return 1
-
-  actual_resolved="$(CDPATH= cd -- "$actual_path" 2>/dev/null && pwd -P)" || return 1
-  expected_resolved="$(CDPATH= cd -- "$expected_path" 2>/dev/null && pwd -P)" || return 1
-
-  if [ "$actual_resolved" = "$expected_resolved" ]; then
-    return 0
-  fi
 
   if platform_is_windows; then
     actual_windows_target="$(windows_reparse_point_target "$actual_path" 2>/dev/null || true)"
@@ -321,6 +315,15 @@ path_dir_resolves_to() {
       expected_windows_path="$(windows_path "$expected_path")"
       windows_paths_match "$actual_windows_target" "$expected_windows_path" && return 0
     fi
+  fi
+
+  [ -d "$actual_path" ] || return 1
+
+  actual_resolved="$(CDPATH= cd -- "$actual_path" 2>/dev/null && pwd -P)" || return 1
+  expected_resolved="$(CDPATH= cd -- "$expected_path" 2>/dev/null && pwd -P)" || return 1
+
+  if [ "$actual_resolved" = "$expected_resolved" ]; then
+    return 0
   fi
 
   return 1
