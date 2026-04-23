@@ -91,3 +91,7 @@ Claude용 repo-local `gstack`는 자동 준비된다. `superpowers`는 Claude pl
 - 이 repo는 exact version pin 대신 최신 compatible upstream을 따른다.
 - bootstrap 산출물인 `.agents/`, `.claude/`, `.worktrees/`는 git에 남지 않도록 ignore된다.
 - 상세 계약은 `agents/tool-contract.md`, 운영 예시는 `docs/operations/*`를 본다.
+
+## License
+
+MIT. See `LICENSE`.
