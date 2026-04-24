@@ -1,6 +1,6 @@
 # shellcheck shell=sh
 
-POLICY_VERSION="3"
+POLICY_VERSION="4"
 
 GSTACK_REPO="https://github.com/garrytan/gstack.git"
 SUPERPOWERS_REPO="https://github.com/obra/superpowers.git"
@@ -9,7 +9,7 @@ GSTACK_TRACK_MODE="origin-default-branch"
 SUPERPOWERS_TRACK_MODE="origin-default-branch"
 
 SUPPORTED_HOSTS="auto codex claude"
-SUPPORTED_PLATFORMS="Darwin Linux"
+SUPPORTED_PLATFORMS="Darwin Linux Windows"
 SUPPORTED_PHASES="core full"
 DEFAULT_BOOTSTRAP_PHASE="core"
 

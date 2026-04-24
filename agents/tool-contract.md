@@ -23,7 +23,8 @@
 - `verification-before-completion`
 - `writing-plans`
 - Codex 환경에서는 `~/.codex/config.toml`의 `[features]` 아래 `multi_agent = true`가 유지되어야 한다.
-- Codex에서는 `.agents/skills/superpowers`가 repo-local checkout이고, `~/.codex/superpowers`와 `~/.agents/skills/superpowers`는 이 checkout으로 연결된 symlink여야 한다.
+- Codex에서는 `.agents/skills/superpowers`가 repo-local checkout이고, `~/.codex/superpowers`와 `~/.agents/skills/superpowers`는 이 checkout으로 연결된 link여야 한다.
+- macOS/Linux에서는 위 link가 symlink이고, Windows Git Bash/MSYS 계열에서는 directory junction일 수 있다. `CODEX_SUPERPOWERS_MODE` 값은 기존 호환성 때문에 `repo_local_checkout_with_home_symlinks`를 유지한다.
 - 이 repo의 세션 저장/복원 workflow는 현재 `gstack-context-save`와 `gstack-context-restore`로 충족된다고 본다.
 - Claude에서는 `superpowers`를 repo-local clone으로 직접 쓰지 않는다. marketplace/plugin 경로가 canonical이다.
 
@@ -61,9 +62,18 @@
 - `gstack-design-review`
 - `gstack-qa`
 - `gstack-qa-only`
-- repo-local `full` bootstrap 후 `.agents/skills/gstack`와 `.claude/skills/gstack` 아래 `browse/dist/browse`가 존재해야 한다.
+- repo-local `full` bootstrap 후 `.agents/skills/gstack`와 `.claude/skills/gstack` 아래 `browse/dist/browse` 또는 `browse/dist/browse.exe`가 존재해야 한다.
+- Windows Git Bash/MSYS 계열의 `full` phase는 `node`가 PATH에 있어야 한다. gstack browse가 Bun 대신 Node fallback을 사용할 수 있기 때문이다.
 - Codex repo-local `full` bootstrap 후 browser-dependent skill entry도 `.agents/skills/gstack/.agents/skills/` 내부에 생성되어야 한다.
 - Claude repo-local `full` bootstrap 후 browser-dependent sibling skill entry도 `.claude/skills/`에 생성되어야 한다.
+
+## Platform Contract
+
+- 지원 플랫폼은 `Darwin`, `Linux`, `Windows`다.
+- `MINGW*`, `MSYS*`, `CYGWIN*`, `Windows_NT` raw platform 값은 `Windows`로 정규화한다.
+- Windows 지원은 Windows 11 Git Bash/MSYS 계열 기준이다.
+- WSL은 기존 Linux 경로로 처리한다.
+- PowerShell native bootstrap과 Claude Windows plugin 흐름은 현재 contract 범위 밖이다.
 
 ## Update Policy
 

@@ -46,8 +46,32 @@ load_agent_stack_policy() {
   validate_policy_contract
 }
 
-current_platform() {
+current_platform_raw() {
+  if [ -n "${DEV_AGENT_UNAME_OVERRIDE:-}" ]; then
+    printf '%s\n' "$DEV_AGENT_UNAME_OVERRIDE"
+    return 0
+  fi
+
   uname -s
+}
+
+normalize_platform() {
+  local raw="$1"
+
+  case "$raw" in
+    Darwin) printf 'Darwin\n' ;;
+    Linux) printf 'Linux\n' ;;
+    MINGW*|MSYS*|CYGWIN*|Windows_NT) printf 'Windows\n' ;;
+    *) printf '%s\n' "$raw" ;;
+  esac
+}
+
+current_platform() {
+  normalize_platform "$(current_platform_raw)"
+}
+
+platform_is_windows() {
+  [ "$(current_platform)" = "Windows" ]
 }
 
 value_in_word_list() {
@@ -132,20 +156,147 @@ git_clone_latest_default_branch() {
   git clone --depth 1 --single-branch --branch "$branch" "$repo" "$target"
 }
 
+windows_path() {
+  local path="$1"
+
+  if command -v cygpath >/dev/null 2>&1; then
+    cygpath -w "$path"
+  else
+    printf '%s\n' "$path"
+  fi
+}
+
+windows_reparse_point_exists() {
+  local path="$1"
+  local fsutil_cmd=""
+  local path_win=""
+
+  platform_is_windows || return 1
+
+  if windows_reparse_point_target "$path" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  fsutil_cmd="$(command -v fsutil.exe 2>/dev/null || command -v fsutil 2>/dev/null || true)"
+  [ -n "$fsutil_cmd" ] || return 1
+
+  path_win="$(windows_path "$path")"
+  "$fsutil_cmd" reparsepoint query "$path_win" >/dev/null 2>&1
+}
+
+windows_reparse_point_target() {
+  local path="$1"
+  local fsutil_cmd=""
+  local powershell_cmd=""
+  local path_win=""
+  local target=""
+
+  platform_is_windows || return 1
+
+  path_win="$(windows_path "$path")"
+  powershell_cmd="$(command -v powershell.exe 2>/dev/null || command -v pwsh.exe 2>/dev/null || true)"
+  if [ -n "$powershell_cmd" ]; then
+    target="$("$powershell_cmd" -NoProfile -Command 'param([string]$Path) $item = Get-Item -LiteralPath $Path -Force; if ($item.Target) { $item.Target } elseif ($item.LinkTarget) { $item.LinkTarget }' "$path_win" 2>/dev/null | tr -d '\r' | sed -n '1p')"
+    if [ -n "$target" ]; then
+      printf '%s\n' "$target"
+      return 0
+    fi
+  fi
+
+  fsutil_cmd="$(command -v fsutil.exe 2>/dev/null || command -v fsutil 2>/dev/null || true)"
+  [ -n "$fsutil_cmd" ] || return 1
+
+  "$fsutil_cmd" reparsepoint query "$path_win" 2>/dev/null | awk '
+    /^[[:space:]]*Print Name[[:space:]]*:/ {
+      sub(/^[^:]*:[[:space:]]*/, "")
+      print
+      found = 1
+      exit
+    }
+    END { exit found ? 0 : 1 }
+  '
+}
+
+normalize_windows_path_for_compare() {
+  printf '%s\n' "$1" |
+    tr '\\' '/' |
+    sed 's#^/??/##; s#^//[?]/##; s#/*$##' |
+    tr '[:upper:]' '[:lower:]'
+}
+
+windows_paths_match() {
+  local actual="$1"
+  local expected="$2"
+
+  [ "$(normalize_windows_path_for_compare "$actual")" = "$(normalize_windows_path_for_compare "$expected")" ]
+}
+
+path_is_link_dir() {
+  local path="$1"
+
+  [ -L "$path" ] || windows_reparse_point_exists "$path"
+}
+
+remove_link_dir() {
+  local path="$1"
+  local cmd_cmd=""
+  local path_win=""
+
+  [ -n "$path" ] || return 0
+  [ -e "$path" ] || [ -L "$path" ] || return 0
+
+  if [ -L "$path" ]; then
+    rm -f "$path"
+    return 0
+  fi
+
+  if windows_reparse_point_exists "$path"; then
+    cmd_cmd="$(command -v cmd.exe 2>/dev/null || command -v cmd 2>/dev/null || true)"
+    [ -n "$cmd_cmd" ] || die "cmd.exe is required to remove Windows junction: $path"
+    path_win="$(windows_path "$path")"
+    MSYS2_ARG_CONV_EXCL='*' "$cmd_cmd" /d /c rmdir "$path_win" >/dev/null || die "failed to remove Windows junction: $path"
+    return 0
+  fi
+
+  die "refusing to remove non-link directory path: $path"
+}
+
+create_windows_junction_dir() {
+  local src="$1"
+  local dst="$2"
+  local cmd_cmd=""
+  local src_win=""
+  local dst_win=""
+
+  [ -d "$src" ] || die "junction source directory does not exist: $src"
+
+  cmd_cmd="$(command -v cmd.exe 2>/dev/null || command -v cmd 2>/dev/null || true)"
+  [ -n "$cmd_cmd" ] || die "cmd.exe is required to create Windows junction: $dst"
+
+  src_win="$(windows_path "$src")"
+  dst_win="$(windows_path "$dst")"
+  MSYS2_ARG_CONV_EXCL='*' "$cmd_cmd" /d /c mklink /J "$dst_win" "$src_win" >/dev/null || die "failed to create Windows junction: $dst -> $src"
+}
+
 ensure_symlink_dir() {
   local src="$1"
   local dst="$2"
 
+  [ -d "$src" ] || die "link source directory does not exist: $src"
   mkdir -p "$(dirname "$dst")"
 
-  if [ -e "$dst" ] && [ ! -L "$dst" ]; then
+  if [ -e "$dst" ] || [ -L "$dst" ]; then
     if [ -d "$dst" ] && path_dir_resolves_to "$dst" "$src"; then
       return 0
     fi
-    die "refusing to replace non-symlink path: $dst"
+    remove_link_dir "$dst"
   fi
 
-  ln -snf "$src" "$dst"
+  if platform_is_windows; then
+    create_windows_junction_dir "$src" "$dst"
+  else
+    ln -snf "$src" "$dst"
+  fi
 }
 
 path_dir_resolves_to() {
@@ -153,14 +304,40 @@ path_dir_resolves_to() {
   local expected_path="$2"
   local actual_resolved=""
   local expected_resolved=""
+  local actual_windows_target=""
+  local expected_windows_path=""
+
+  [ -d "$expected_path" ] || return 1
+
+  actual_resolved="$(readlink -f -- "$actual_path" 2>/dev/null || true)"
+  expected_resolved="$(readlink -f -- "$expected_path" 2>/dev/null || true)"
+  if [ -n "$actual_resolved" ] && [ -n "$expected_resolved" ]; then
+    if [ "$actual_resolved" = "$expected_resolved" ]; then
+      return 0
+    fi
+    if platform_is_windows && windows_paths_match "$actual_resolved" "$expected_resolved"; then
+      return 0
+    fi
+  fi
+
+  if platform_is_windows; then
+    actual_windows_target="$(windows_reparse_point_target "$actual_path" 2>/dev/null || true)"
+    if [ -n "$actual_windows_target" ]; then
+      expected_windows_path="$(windows_path "$expected_path")"
+      windows_paths_match "$actual_windows_target" "$expected_windows_path" && return 0
+    fi
+  fi
 
   [ -d "$actual_path" ] || return 1
-  [ -d "$expected_path" ] || return 1
 
   actual_resolved="$(CDPATH= cd -- "$actual_path" 2>/dev/null && pwd -P)" || return 1
   expected_resolved="$(CDPATH= cd -- "$expected_path" 2>/dev/null && pwd -P)" || return 1
 
-  [ "$actual_resolved" = "$expected_resolved" ]
+  if [ "$actual_resolved" = "$expected_resolved" ]; then
+    return 0
+  fi
+
+  return 1
 }
 
 config_has_multi_agent_true() {
@@ -251,7 +428,12 @@ safe_remove_dir() {
   local target="$1"
 
   [ -n "$target" ] || return 0
-  [ -e "$target" ] || return 0
+  [ -e "$target" ] || [ -L "$target" ] || return 0
+
+  if path_is_link_dir "$target"; then
+    remove_link_dir "$target"
+    return 0
+  fi
 
   rm -rf "$target"
 }
@@ -301,6 +483,32 @@ phase_requires_browse_binary() {
       die "unsupported phase for browse requirement: $phase"
       ;;
   esac
+}
+
+phase_requires_node() {
+  local phase="$1"
+
+  [ "$phase" = "full" ] && platform_is_windows
+}
+
+gstack_browse_binary_path() {
+  local checkout_dir="$1"
+  local candidate=""
+
+  for candidate in "$checkout_dir/browse/dist/browse" "$checkout_dir/browse/dist/browse.exe"; do
+    if [ -f "$candidate" ] && { [ -x "$candidate" ] || platform_is_windows; }; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+gstack_browse_binary_hint() {
+  local checkout_dir="$1"
+
+  printf '%s\n' "$checkout_dir/browse/dist/browse[.exe]"
 }
 
 phase_excludes_gstack_skill() {
@@ -354,7 +562,7 @@ gstack_install_is_valid() {
   [ -d "$skills_root/gstack/.git" ] || return 1
   [ -d "$generated_skills_root" ] || return 1
   if phase_requires_browse_binary "$phase"; then
-    [ -x "$skills_root/gstack/browse/dist/browse" ] || return 1
+    gstack_browse_binary_path "$skills_root/gstack" >/dev/null 2>&1 || return 1
   fi
 
   list_missing_phase_gstack_skills "$skills_root" "$phase" >/dev/null 2>&1

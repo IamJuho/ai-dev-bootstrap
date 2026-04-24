@@ -80,6 +80,7 @@ check_repo_local_gstack() {
   local checkout_dir="$skills_root/gstack"
   local generated_skills_root="$checkout_dir/.agents/skills"
   local missing_skill=""
+  local browse_binary=""
 
   if [ ! -d "$checkout_dir/.git" ]; then
     mark_fail "$agent_name gstack checkout missing: $checkout_dir"
@@ -95,10 +96,10 @@ check_repo_local_gstack() {
   fi
 
   if phase_requires_browse_binary "$phase"; then
-    if [ -x "$checkout_dir/browse/dist/browse" ]; then
-      mark_ok "$agent_name gstack browse binary is ready"
+    if browse_binary="$(gstack_browse_binary_path "$checkout_dir")"; then
+      mark_ok "$agent_name gstack browse binary is ready: $browse_binary"
     else
-      mark_fail "$agent_name gstack browse binary is missing: $checkout_dir/browse/dist/browse"
+      mark_fail "$agent_name gstack browse binary is missing: $(gstack_browse_binary_hint "$checkout_dir")"
     fi
   else
     mark_ok "$agent_name gstack browse binary is not required for phase=$phase"
@@ -131,15 +132,15 @@ check_codex_superpowers() {
   mark_ok "Codex repo-local superpowers checkout exists"
 
   if path_dir_resolves_to "$repo_link" "$repo_dir"; then
-    mark_ok "Codex superpowers home checkout symlink is connected"
+    mark_ok "Codex superpowers home checkout link is connected"
   else
-    mark_fail "Codex superpowers home checkout symlink is missing or points elsewhere: $repo_link"
+    mark_fail "Codex superpowers home checkout link is missing or points elsewhere: $repo_link"
   fi
 
   if path_dir_resolves_to "$skills_link" "$repo_dir/skills"; then
-    mark_ok "Codex superpowers skills symlink is connected"
+    mark_ok "Codex superpowers skills link is connected"
   else
-    mark_fail "Codex superpowers skills symlink is missing or points elsewhere: $skills_link"
+    mark_fail "Codex superpowers skills link is missing or points elsewhere: $skills_link"
   fi
 
   if config_has_multi_agent_true "$config_file"; then
@@ -172,6 +173,14 @@ fi
 
 printf 'Checking host=%s phase=%s\n' "$HOST" "$PHASE"
 printf 'Policy file: %s\n' "$DEV_AGENT_POLICY_FILE"
+
+if phase_requires_node "$PHASE"; then
+  if command -v node >/dev/null 2>&1; then
+    mark_ok "node is available on PATH for Windows phase=full"
+  else
+    mark_fail "node is required on Windows for phase=full because gstack browse uses Node fallback"
+  fi
+fi
 
 if host_includes_codex "$HOST"; then
   check_repo_local_gstack \
