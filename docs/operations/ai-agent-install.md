@@ -182,6 +182,8 @@ Windows Git Bash/MSYS 계열에서 Codex `full`을 검증한다면 추가로 아
 
 upstream 산출물이 `.exe` 이름으로 만들어진 경우 마지막 명령은 `.agents/skills/gstack/browse/dist/browse.exe --help`로 확인한다.
 
+Windows sandbox 환경에서 Git Bash가 script 시작 전 `CreateFileMapping ... Win32 error 5`로 실패할 수 있다. 이 경우 같은 명령을 일반 Windows Git Bash/MSYS shell에서 다시 실행해 판단한다. 2026-05-07 기준 Codex `core`는 일반 Windows Git Bash/MSYS 환경에서 `setup-dev-agents`, `check-dev-agents`, `tests/phase-bootstrap.test.sh`까지 통과한 것으로 실증됐다. 이 기록은 `agents/tool-contract.md`의 `Windows Codex Core Validation` 섹션을 기준으로 본다.
+
 ## Safety Rules
 
 - `git reset --hard`, `git checkout --`, 광범위한 `rm`을 쓰지 않는다.
