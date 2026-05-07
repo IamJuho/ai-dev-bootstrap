@@ -107,6 +107,7 @@ Claude용 repo-local `gstack`는 자동 준비된다. `superpowers`는 Claude pl
 - 지원 OS는 macOS, Linux, Windows 11 Git Bash/MSYS 계열이다.
 - WSL은 기존 Linux 경로로 처리한다.
 - PowerShell native bootstrap은 지원 범위 밖이다. Windows에서는 Git Bash/MSYS 계열 shell에서 실행한다.
+- Windows Git Bash/MSYS 계열의 Codex `core` bootstrap은 실제 Windows 환경에서 `setup-dev-agents`, `check-dev-agents`, `tests/phase-bootstrap.test.sh`로 검증됐다. 검증 범위와 제외 범위는 `agents/tool-contract.md`의 `Windows Codex Core Validation`을 본다.
 - 이 repo는 exact version pin 대신 최신 compatible upstream을 따른다.
 - bootstrap 산출물인 `.agents/`, `.claude/`, `.worktrees/`는 git에 남지 않도록 ignore된다.
 - Codex 호환을 위해 `~/.codex/superpowers`와 `~/.agents/skills/superpowers`는 repo-local `.agents/skills/superpowers`로 연결된다. macOS/Linux에서는 symlink, Windows Git Bash/MSYS에서는 directory junction일 수 있다.

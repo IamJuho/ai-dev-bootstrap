@@ -75,6 +75,30 @@
 - WSL은 기존 Linux 경로로 처리한다.
 - PowerShell native bootstrap과 Claude Windows plugin 흐름은 현재 contract 범위 밖이다.
 
+### Windows Codex Core Validation
+
+2026-05-07 기준으로 Windows Git Bash/MSYS 계열 환경에서 Codex `core` bootstrap은 실제 실행으로 검증됐다.
+
+검증된 범위:
+
+- `bash ./bin/setup-dev-agents --host codex --phase core`
+- `bash ./bin/check-dev-agents --host codex --phase core`
+- `bash tests/phase-bootstrap.test.sh`
+- 설치 후 repo-local `.agents/skills/gstack`와 `.agents/skills/superpowers`가 생성되고, Codex home link/config 요구가 `check-dev-agents`에서 통과한다.
+- `check-dev-agents`는 `Result exit code: 0`을 출력한다.
+- phase bootstrap test는 Windows platform normalization, Windows `core`/`full` node 요구 조건, Codex superpowers repo-local checkout/link contract를 확인하고 `All phase bootstrap tests passed.`를 출력한다.
+
+이 검증으로 주장할 수 있는 것은 Windows Git Bash/MSYS 계열의 `host=codex`, `phase=core` bootstrap 지원이다.
+
+검증 범위 밖:
+
+- Codex `full` phase와 browser/QA/visual review 경로
+- PowerShell/cmd native bootstrap
+- Claude Windows plugin 흐름
+- sandbox 내부 Git Bash 실행 자체
+
+일부 Windows sandbox에서는 Git Bash가 script 시작 전 `CreateFileMapping ... Win32 error 5`로 실패할 수 있다. 이 경우는 bootstrap contract 실패가 아니라 sandbox와 Git Bash 조합의 실행 제한으로 보고, 같은 명령을 일반 Windows Git Bash/MSYS 환경에서 다시 실행해 판단한다.
+
 ## Update Policy
 
 - `./bin/setup-dev-agents`는 upstream default branch 최신 상태를 가져오고, 현재 repo contract를 만족하는지 확인한 뒤에만 설치를 승격한다.
